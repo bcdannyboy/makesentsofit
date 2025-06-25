@@ -25,6 +25,7 @@ Important keys are:
 - `output_formats` – formats to export (`json`, `csv`, `html`)
 - `output_prefix` – prefix for generated files
 - `visualize` – enable image and interactive chart generation
+- `openai_api_key` – optional key for using ChatGPT sentiment analysis
 
 Any command line flags override the values loaded from the configuration file.
 

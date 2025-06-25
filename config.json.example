@@ -23,5 +23,6 @@
   "retry_delay": 1.0,
   "user_agent": "MakeSenseOfIt/1.0",
   "timeout": 30,
+  "openai_api_key": "YOUR_OPENAI_KEY",
   "reddit_subreddits": ["bitcoin", "cryptocurrency", "investing"]
 }

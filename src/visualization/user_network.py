@@ -33,6 +33,7 @@ class UserSentimentNetworkAnalyzer:
             'post_count': 0,
             'sentiments': Counter(),
             'topics': Counter(),
+            'subreddits': Counter(),
             'total_engagement': 0,
             'avg_engagement': 0,
             'posts': []
@@ -47,10 +48,13 @@ class UserSentimentNetworkAnalyzer:
             sentiment = post.sentiment.get('label', 'NEUTRAL')
             query = getattr(post, 'query', 'unknown')
             engagement = sum(post.engagement.values()) if post.engagement else 0
-            
+            subreddit = post.metadata.get('subreddit')
+
             user_stats[user]['post_count'] += 1
             user_stats[user]['sentiments'][sentiment] += 1
             user_stats[user]['topics'][query] += 1
+            if subreddit:
+                user_stats[user]['subreddits'][subreddit] += 1
             user_stats[user]['total_engagement'] += engagement
             user_stats[user]['posts'].append(post)
         
@@ -113,7 +117,8 @@ class UserSentimentNetworkAnalyzer:
                 'total_engagement': stats['total_engagement'],
                 'positivity_ratio': stats['positivity_ratio'],
                 'negativity_ratio': stats['negativity_ratio'],
-                'top_topics': list(stats['topics'].most_common(3))
+                'top_topics': list(stats['topics'].most_common(3)),
+                'top_subreddits': list(stats['subreddits'].most_common(3))
             })
         
         # Create edges based on shared topics and similar sentiment patterns
@@ -124,25 +129,32 @@ class UserSentimentNetworkAnalyzer:
                 topics1 = set(active_users[user1]['topics'].keys())
                 topics2 = set(active_users[user2]['topics'].keys())
                 shared_topics = topics1.intersection(topics2)
-                
-                if shared_topics:
-                    # Calculate connection strength
-                    topic_overlap = len(shared_topics) / len(topics1.union(topics2))
-                    
-                    # Calculate sentiment similarity
+
+                sub1 = set(active_users[user1]['subreddits'].keys())
+                sub2 = set(active_users[user2]['subreddits'].keys())
+                shared_subs = sub1.intersection(sub2)
+
+                if shared_topics or shared_subs:
+                    topic_overlap = len(shared_topics) / len(topics1.union(topics2)) if topics1.union(topics2) else 0
+                    sub_overlap = len(shared_subs) / len(sub1.union(sub2)) if sub1.union(sub2) else 0
+
                     score1 = active_users[user1]['sentiment_score']
                     score2 = active_users[user2]['sentiment_score']
                     sentiment_similarity = 1 - abs(score1 - score2)
-                    
-                    # Combined weight
-                    weight = (topic_overlap + sentiment_similarity) / 2
-                    
-                    if weight > 0.3:  # Minimum connection threshold
-                        G.add_edge(user1, user2, 
-                                 weight=weight,
-                                 shared_topics=list(shared_topics),
-                                 topic_overlap=topic_overlap,
-                                 sentiment_similarity=sentiment_similarity)
+
+                    weight = (topic_overlap + sub_overlap + sentiment_similarity) / 3
+
+                    if weight > 0.3:
+                        G.add_edge(
+                            user1,
+                            user2,
+                            weight=weight,
+                            shared_topics=list(shared_topics),
+                            shared_subreddits=list(shared_subs),
+                            topic_overlap=topic_overlap,
+                            subreddit_overlap=sub_overlap,
+                            sentiment_similarity=sentiment_similarity,
+                        )
         
         return G
     
@@ -177,6 +189,7 @@ class UserSentimentNetworkAnalyzer:
             sentiment_score = attrs['sentiment_score']
             avg_engagement = attrs['avg_engagement']
             top_topics = attrs.get('top_topics', [])
+            top_subs = attrs.get('top_subreddits', [])
             
             # Color by sentiment type
             node_colors.append(self.sentiment_colors.get(user_type, '#6c757d'))
@@ -187,13 +200,15 @@ class UserSentimentNetworkAnalyzer:
             
             # Hover text
             topics_str = ', '.join([f"{topic} ({count})" for topic, count in top_topics[:3]])
+            subs_str = ', '.join([f"r/{sub} ({count})" for sub, count in top_subs[:3]])
             hover_text = (
                 f"<b>{node}</b><br>"
                 f"Posts: {post_count}<br>"
                 f"Sentiment: {user_type}<br>"
                 f"Score: {sentiment_score:.2f}<br>"
                 f"Avg Engagement: {avg_engagement:.1f}<br>"
-                f"Top Topics: {topics_str}"
+                f"Top Topics: {topics_str}<br>"
+                f"Subreddits: {subs_str}"
             )
             node_info.append(hover_text)
             node_text.append(node)

@@ -12,7 +12,7 @@ os.environ.setdefault("CUDA_VISIBLE_DEVICES", "")
 # Prevent TensorFlow from registering Metal backend multiple times
 os.environ.setdefault("TF_DISABLE_METAL", "1")
 
-from typing import List, Dict
+from typing import List, Dict, Optional
 
 # Detect if we're on Apple Silicon Mac where TensorFlow Metal causes issues
 def _is_apple_silicon():
@@ -27,6 +27,10 @@ FORCE_VADER_ONLY = _is_apple_silicon()
 
 from nltk.sentiment.vader import SentimentIntensityAnalyzer
 import nltk
+try:
+    import openai  # type: ignore
+except Exception:  # pragma: no cover - optional dependency
+    openai = None
 try:
     import torch
 except Exception:  # pragma: no cover - optional dependency
@@ -43,9 +47,19 @@ logger = logging.getLogger(__name__)
 class SentimentAnalyzer:
     """Analyze sentiment of text or posts."""
 
-    def __init__(self, model_name: str = "cardiffnlp/twitter-roberta-base-sentiment-latest"):
+    def __init__(self, model_name: str = "cardiffnlp/twitter-roberta-base-sentiment-latest",
+                 openai_api_key: Optional[str] = None):
         self.model_name = model_name
         self.preprocessor = TextPreprocessor()
+
+        self.openai_api_key = openai_api_key or os.getenv("OPENAI_API_KEY")
+        self.use_openai = bool(self.openai_api_key and openai)
+        if self.use_openai and openai is not None:
+            openai.api_key = self.openai_api_key
+            logger.info("OpenAI API key provided - using ChatGPT for sentiment analysis")
+        elif self.use_openai and openai is None:
+            logger.warning("openai package not installed, disabling OpenAI sentiment analysis")
+            self.use_openai = False
 
         # Don't initialize transformer at creation time - wait until needed
         self.transformer_available = None  # Unknown until we try
@@ -105,6 +119,30 @@ class SentimentAnalyzer:
     def analyze_batch(self, texts: List[str]) -> List[Dict]:
         """Analyze a batch of texts."""
         processed = [self.preprocessor.clean(t) for t in texts]
+
+        if self.use_openai:
+            results = []
+            for raw, cleaned in zip(texts, processed):
+                try:
+                    resp = openai.ChatCompletion.create(
+                        model="gpt-4o",
+                        messages=[
+                            {"role": "system", "content": "Classify the sentiment of the following text as POSITIVE, NEGATIVE, or NEUTRAL."},
+                            {"role": "user", "content": cleaned},
+                        ],
+                        max_tokens=1,
+                    )
+                    label = resp.choices[0].message["content"].strip().upper()
+                    results.append({
+                        "label": label,
+                        "score": 1.0,
+                        "method": "openai",
+                        "original_text": raw[:200],
+                    })
+                except Exception as exc:  # pragma: no cover - network issues
+                    logger.error("OpenAI sentiment failed: %s", exc)
+                    results.append(self._analyze_with_vader(raw))
+            return results
 
         # Try to initialize transformer on first use
         if self.transformer_available is None:
