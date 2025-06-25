@@ -1,5 +1,5 @@
 {
-  "default_platforms": ["twitter", "reddit"],
+  "default_platforms": ["reddit"],
   "default_time_window": 365,
   "rate_limits": {
     "twitter": 50,

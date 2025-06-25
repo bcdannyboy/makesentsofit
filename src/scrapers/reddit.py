@@ -50,7 +50,7 @@ class RedditScraper(BaseScraper):
             raise ImportError("PRAW is required for Reddit scraping")
         
         # Get Reddit credentials from config
-        if config and hasattr(config, 'reddit'):
+        if config and hasattr(config, 'reddit') and config.reddit is not None:
             reddit_config = config.reddit
             client_id = reddit_config.get('client_id')
             client_secret = reddit_config.get('client_secret')

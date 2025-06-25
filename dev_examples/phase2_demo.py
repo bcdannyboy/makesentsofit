@@ -26,8 +26,8 @@ def demo_basic_scraping():
     config = Config('config.json')
     
     # Parameters
-    platforms = ['twitter', 'reddit']
-    queries = ['python programming', 'machine learning']
+    platforms = ['reddit']
+    queries = ['h3', 'ethan klein', 'Ethan Klein', 'H3H3', 'H3']
     days_back = 1
     
     # Date range
