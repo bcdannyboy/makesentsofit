@@ -407,12 +407,12 @@ class TimeSeriesAnalyzer:
         
         # Daily volatility
         daily_sentiment = df.resample('D')['sentiment_value'].mean()
-        daily_returns = daily_sentiment.pct_change().dropna()
+        daily_returns = daily_sentiment.pct_change(fill_method=None).dropna()
         daily_volatility = daily_returns.std() if len(daily_returns) > 0 else 0.0
         
         # Hourly volatility
         hourly_sentiment = df.resample('H')['sentiment_value'].mean()
-        hourly_returns = hourly_sentiment.pct_change().dropna()
+        hourly_returns = hourly_sentiment.pct_change(fill_method=None).dropna()
         hourly_volatility = hourly_returns.std() if len(hourly_returns) > 0 else 0.0
         
         return {
@@ -531,7 +531,9 @@ class TimeSeriesAnalyzer:
             return {}
         
         # Recent sentiment distribution
-        recent_df = df.last('3D')
+        # Use loc instead of deprecated last method
+        three_days_ago = df.index.max() - pd.Timedelta(days=3)
+        recent_df = df.loc[df.index >= three_days_ago]
         recent_sentiment = recent_df['sentiment'].value_counts(normalize=True).to_dict()
         
         # Trend consistency

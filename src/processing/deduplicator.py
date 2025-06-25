@@ -191,8 +191,10 @@ class Deduplicator:
         # Remove hashtags but keep the text
         normalized = re.sub(r'#(\w+)', r'\1', normalized)
         
-        # Remove special characters and extra whitespace
+        # Remove all punctuation and special characters
         normalized = re.sub(r'[^\w\s]', ' ', normalized)
+        
+        # Normalize whitespace - single spaces only
         normalized = ' '.join(normalized.split())
         
         return normalized.strip()

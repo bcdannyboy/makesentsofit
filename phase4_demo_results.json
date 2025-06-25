@@ -1,0 +1,52 @@
+{
+  "metadata": {
+    "total_posts": 715,
+    "unique_posts": 106,
+    "processing_time": 0.018053054809570312,
+    "timestamp": "2025-06-25T12:27:31.746047"
+  },
+  "deduplication": {
+    "total_posts": 715,
+    "unique_posts": 106,
+    "duplicates_removed": 609,
+    "duplicate_rate": 0.8517482517482518,
+    "duplicates_by_query": {
+      "demo_query": 609
+    },
+    "duplicates_by_type": {
+      "content": 608,
+      "exact_id": 1
+    },
+    "cross_query_duplicates": 608,
+    "processing_stats": {
+      "total_processed": 715,
+      "exact_id_duplicates": 1,
+      "content_duplicates": 608,
+      "fuzzy_duplicates": 0,
+      "cross_platform_duplicates": 608
+    }
+  },
+  "aggregation": {
+    "summary": {
+      "total_posts": 106,
+      "sentiment_distribution": {
+        "POSITIVE": 36,
+        "NEUTRAL": 35,
+        "NEGATIVE": 35
+      },
+      "unique_authors": 5,
+      "negative_users_count": 1,
+      "viral_posts_count": 1
+    }
+  },
+  "time_series": {
+    "trend": "stable",
+    "anomalies_count": 1,
+    "volatility": {
+      "overall": 0.8222533848703925,
+      "daily": NaN,
+      "hourly": 0.0,
+      "coefficient_of_variation": 87.1588587962616
+    }
+  }
+}

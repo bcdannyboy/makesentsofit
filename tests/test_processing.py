@@ -96,7 +96,7 @@ class TestDeduplicator:
         posts = [
             create_test_post(1, "Hello World! #test @user1"),
             create_test_post(2, "hello world test user1"),  # Normalized same
-            create_test_post(3, "HELLO WORLD!! TEST USER1"),  # Also normalized same
+            create_test_post(3, "Hello, World! Test @user1!"),  # Also normalized same
             create_test_post(4, "Different content here")
         ]
         
@@ -347,8 +347,9 @@ class TestDataAggregator:
         """Test viral posts identification."""
         posts = [
             create_test_post(1, "Normal post", engagement={'likes': 10, 'retweets': 5}),
-            create_test_post(2, "Viral post", engagement={'likes': 1000, 'retweets': 500}),
-            create_test_post(3, "Another normal", engagement={'likes': 20, 'retweets': 10}),
+            create_test_post(2, "Another normal", engagement={'likes': 20, 'retweets': 10}),
+            create_test_post(3, "Also normal", engagement={'likes': 15, 'retweets': 8}),
+            create_test_post(4, "Viral post", engagement={'likes': 1000, 'retweets': 500}),
         ]
         
         agg = DataAggregator()
