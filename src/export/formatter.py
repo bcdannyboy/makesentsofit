@@ -143,9 +143,14 @@ class DataFormatter:
             
             posts_data.append(post_data)
         
+        # Always return a posts DataFrame even if empty so downstream
+        # processing can rely on its existence. This mirrors the behaviour
+        # expected by the tests for empty contexts.
+        dataframes['posts'] = pd.DataFrame(posts_data)
         if posts_data:
-            dataframes['posts'] = pd.DataFrame(posts_data)
             logger.debug(f"Created posts DataFrame with {len(posts_data)} rows")
+        else:
+            logger.debug("Created empty posts DataFrame")
         
         # 2. Daily Statistics DataFrame
         stats = context.get('statistics', {})

@@ -11,6 +11,14 @@ from unittest.mock import Mock, patch
 import tempfile
 import shutil
 
+# Shared fixture used across writer and integration tests
+@pytest.fixture
+def temp_output_dir():
+    """Create a temporary output directory for exports."""
+    temp_dir = tempfile.mkdtemp()
+    yield temp_dir
+    shutil.rmtree(temp_dir, ignore_errors=True)
+
 from src.export import DataFormatter, ExportWriter
 from src.scrapers.base import Post
 
@@ -304,13 +312,6 @@ class TestDataFormatter:
 class TestExportWriter:
     """Test export writer functionality."""
     
-    @pytest.fixture
-    def temp_output_dir(self):
-        """Create temporary output directory."""
-        temp_dir = tempfile.mkdtemp()
-        yield temp_dir
-        shutil.rmtree(temp_dir, ignore_errors=True)
-    
     def test_writer_initialization(self, temp_output_dir):
         """Test writer initialization."""
         writer = ExportWriter(temp_output_dir)
@@ -575,5 +576,26 @@ class TestExportIntegration:
         # Export all formats
         json_data = formatter.format_for_json(context)
         json_path = writer.write_json(json_data, 'unicode_test')
-        
-        csv_data = formatter.form
+
+        csv_data = formatter.format_for_csv(context)
+        csv_paths = writer.write_csv(csv_data, 'unicode_test')
+
+        with patch.object(writer.jinja_env, 'get_template') as mock_get:
+            mock_template = Mock()
+            mock_template.render.return_value = "<html>Unicode Test</html>"
+            mock_get.return_value = mock_template
+
+            html_data = formatter.format_for_html(context)
+            html_path = writer.write_html(html_data, 'unicode_test')
+
+        assert json_path.exists()
+        assert all(p.exists() for p in csv_paths)
+        assert html_path.exists()
+
+        # Verify Unicode content preserved
+        with open(json_path, encoding='utf-8') as f:
+            loaded = json.load(f)
+        assert any('世界' in p['content'] for p in loaded['posts'])
+        posts_file = [p for p in csv_paths if 'posts' in p.name][0]
+        posts_df = pd.read_csv(posts_file)
+        assert posts_df['content'].str.contains('Ñoño').any()
