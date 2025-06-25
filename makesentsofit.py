@@ -20,6 +20,7 @@ from src.scrapers import create_scrapers
 from src.sentiment.analyzer import SentimentAnalyzer
 from src.processing import Deduplicator, DataAggregator, TimeSeriesAnalyzer
 from src.export import DataFormatter, ExportWriter
+from networkx.readwrite import json_graph
 
 # Version
 __version__ = '1.0.0'
@@ -84,7 +85,7 @@ def main(queries, time, platforms, output, format, visualize, verbose, config, l
         
         if validation_errors:
             for error in validation_errors:
-                print(f"❌ {error}", err=True)
+                print(f"❌ {error}", file=sys.stderr)
             sys.exit(1)
         
         # Generate output prefix if not provided
@@ -382,12 +383,14 @@ def main(queries, time, platforms, output, format, visualize, verbose, config, l
                     NetworkGraphGenerator,
                     WordCloudGenerator,
                     InteractiveChartGenerator,
+                    UserSentimentNetworkAnalyzer,
                 )
 
                 charts = ChartGenerator()
                 network = NetworkGraphGenerator()
                 wordcloud = WordCloudGenerator()
                 interactive = InteractiveChartGenerator()
+                user_network = UserSentimentNetworkAnalyzer()
 
                 if export_context.get("time_series", {}).get("daily_sentiment"):
                     charts.sentiment_timeline(
@@ -409,6 +412,23 @@ def main(queries, time, platforms, output, format, visualize, verbose, config, l
                     str(output_dir / f"{output}_network.png"),
                 )
                 print("  ✓ User network graph")
+
+                # Advanced user sentiment network (interactive + JSON)
+                user_graph = user_network.create_user_activity_network(
+                    export_context["posts"]
+                )
+                if len(user_graph.nodes()) > 0:
+                    json_data = json_graph.node_link_data(user_graph)
+                    json_path = writer.write_json(
+                        json_data, f"{output}_user_network"
+                    )
+                    exported_files.append(json_path)
+                    user_network.create_plotly_network_viz(
+                        export_context["posts"],
+                        str(output_dir / f"{output}_user_network.html"),
+                    )
+                    exported_files.append(Path(output_dir / f"{output}_user_network.html"))
+                    print("  ✓ User sentiment network")
 
                 wordcloud.create_wordcloud(
                     export_context["posts"],
@@ -490,7 +510,7 @@ def main(queries, time, platforms, output, format, visualize, verbose, config, l
         
     except Exception as e:
         logger.error(f"Error during execution: {str(e)}")
-        print(f"\n❌ Error: {str(e)}", err=True)
+        print(f"\n❌ Error: {str(e)}", file=sys.stderr)
         if verbose:
             logger.exception("Full traceback:")
         sys.exit(1)
