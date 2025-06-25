@@ -170,15 +170,16 @@ class RedditScraper(BaseScraper):
             time_filter = self._get_time_filter(start_date, end_date)
             
             # Search posts
+            # Rate limiting per API request
+            self.rate_limiter.wait_if_needed()
+
             search_results = subreddit.search(
-                query, 
+                query,
                 time_filter=time_filter,
                 limit=None  # No limit, we'll handle it ourselves
             )
-            
+
             for submission in search_results:
-                # Rate limiting
-                self.rate_limiter.wait_if_needed()
                 
                 # Check if we've reached the limit
                 if self.max_posts_per_query and post_count >= self.max_posts_per_query:
@@ -352,10 +353,11 @@ class RedditScraper(BaseScraper):
         
         try:
             subreddit = self.reddit.subreddit(subreddit_name)
-            
+
+            # Rate limit per API call
+            self.rate_limiter.wait_if_needed()
+
             for submission in subreddit.hot(limit=limit):
-                # Rate limiting
-                self.rate_limiter.wait_if_needed()
                 
                 # Convert to Post
                 post = self._submission_to_post(submission, f"hot:r/{subreddit_name}")
@@ -389,10 +391,11 @@ class RedditScraper(BaseScraper):
         
         try:
             user = self.reddit.redditor(username)
-            
+
+            # Rate limit per API call
+            self.rate_limiter.wait_if_needed()
+
             for submission in user.submissions.new(limit=None):
-                # Rate limiting
-                self.rate_limiter.wait_if_needed()
                 
                 # Check date range
                 post_time = datetime.fromtimestamp(submission.created_utc)
@@ -436,10 +439,11 @@ class RedditScraper(BaseScraper):
         try:
             submission = self.reddit.submission(id=submission_id)
             submission.comments.replace_more(limit=0)  # Don't expand "more comments"
-            
+
+            # Rate limit per API call
+            self.rate_limiter.wait_if_needed()
+
             for comment in submission.comments.list()[:limit]:
-                # Rate limiting
-                self.rate_limiter.wait_if_needed()
                 
                 if isinstance(comment, praw.models.Comment):
                     comment_data = {
