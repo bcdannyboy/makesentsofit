@@ -22,5 +22,6 @@
   "max_retries": 3,
   "retry_delay": 1.0,
   "user_agent": "MakeSenseOfIt/1.0",
-  "timeout": 30
+  "timeout": 30,
+  "reddit_subreddits": ["bitcoin", "cryptocurrency", "investing"]
 }

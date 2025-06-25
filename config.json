@@ -22,5 +22,32 @@
   "max_retries": 3,
   "retry_delay": 1.0,
   "user_agent": "MakeSenseOfIt/1.0",
-  "timeout": 30
+  "timeout": 30,
+  "reddit_subreddits": [
+    "all",
+    "h3h3productions",
+    "h3snark",
+    "h3snark2025",
+    "LeftoversH3",
+    "youtubedrama",
+    "OutOfTheLoop",
+    "Destiny",
+    "TheTryGuys",
+    "Fauxmoi",
+    "canceledpod",
+    "fishtanklive",
+    "SubredditDrama",
+    "LivestreamFail",
+    "videos",
+    "unpopularkpopopinions",
+    "ShitLiberalsSay",
+    "badempanadas",
+    "JoeRogan",
+    "Asmongold",
+    "DeppDelusion",
+    "Idubbbz",
+    "mealtimevideos",
+    "braveryjerk",
+    "Hasan_Piker"
+  ]
 }

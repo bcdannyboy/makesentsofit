@@ -46,6 +46,7 @@ class Config:
     
     # Platform-specific configurations
     reddit: Optional[Dict[str, Any]] = None
+    reddit_subreddits: List[str] = field(default_factory=lambda: ['all'])
     
     def __init__(self, config_file: Optional[str] = None):
         """
@@ -85,6 +86,7 @@ class Config:
         self.timeout = 30
         self.max_posts_per_query = None
         self.reddit = None
+        self.reddit_subreddits = ['all']
         self.queries = []
         self.output_formats = ['json']
         self.output_prefix = None
@@ -140,6 +142,14 @@ class Config:
             dir_path = getattr(self, dir_attr)
             if not isinstance(dir_path, str) or not dir_path:
                 raise ValueError(f"Invalid {dir_attr}: {dir_path}")
+        
+        # Validate reddit_subreddits
+        if not isinstance(self.reddit_subreddits, list):
+            raise ValueError("reddit_subreddits must be a list")
+        
+        for subreddit in self.reddit_subreddits:
+            if not isinstance(subreddit, str) or not subreddit.strip():
+                raise ValueError(f"Invalid subreddit name: {subreddit}")
     
     def _create_directories(self):
         """Create necessary directories if they don't exist."""
