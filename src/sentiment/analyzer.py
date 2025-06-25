@@ -57,6 +57,7 @@ class SentimentAnalyzer:
                 device=device,
                 truncation=True,
                 max_length=512,
+                framework="pt",
             )
             self.transformer_available = True
             logger.info("Loaded transformer model: %s", self.model_name)
