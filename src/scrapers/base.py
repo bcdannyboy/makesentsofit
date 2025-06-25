@@ -5,7 +5,10 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from datetime import datetime
 from typing import List, Dict, Optional, Any
+from concurrent.futures import ThreadPoolExecutor
 import logging
+import os
+from threading import Lock
 
 logger = logging.getLogger(__name__)
 
@@ -93,14 +96,16 @@ class BaseScraper(ABC):
     All platform-specific scrapers must inherit from this class.
     """
     
-    def __init__(self, rate_limiter: 'RateLimiter'):
+    def __init__(self, rate_limiter: 'RateLimiter', max_workers: Optional[int] = None):
         """
         Initialize base scraper.
-        
+
         Args:
             rate_limiter: Rate limiter instance
         """
         self.rate_limiter = rate_limiter
+        self.max_workers = max_workers or max(1, (os.cpu_count() or 1))
+        self._lock = Lock()
         self.posts_collected = 0
         self.errors_count = 0
         self.last_error = None
@@ -145,26 +150,30 @@ class BaseScraper(ABC):
             Combined list of posts from all queries
         """
         all_posts = []
-        
-        for i, query in enumerate(queries, 1):
+
+        def run_task(args):
+            i, query = args
             self.logger.info(f"Scraping query {i}/{len(queries)}: '{query}'")
-            
+
             try:
                 posts = self.scrape(query, start_date, end_date)
-                all_posts.extend(posts)
-                
                 self.logger.info(f"Collected {len(posts)} posts for '{query}'")
-                
+                return posts
             except Exception as e:
-                self.errors_count += 1
-                self.last_error = str(e)
+                with self._lock:
+                    self.errors_count += 1
+                    self.last_error = str(e)
                 self.logger.error(f"Error scraping '{query}': {e}")
-                
-                # Continue with next query instead of failing completely
-                continue
-        
-        self.logger.info(f"Total posts collected: {len(all_posts)} from {len(queries)} queries")
-        
+                return []
+
+        with ThreadPoolExecutor(max_workers=self.max_workers) as executor:
+            results = executor.map(run_task, enumerate(queries, 1))
+            for posts in results:
+                all_posts.extend(posts)
+
+        self.logger.info(
+            f"Total posts collected: {len(all_posts)} from {len(queries)} queries")
+
         return all_posts
     
     def reset_stats(self):

@@ -30,7 +30,8 @@ class RedditScraper(BaseScraper):
     def __init__(self, rate_limiter: RateLimiter,
                  config: Optional['Config'] = None,
                  subreddits: Optional[List[str]] = None,
-                 max_posts_per_query: Optional[int] = None):
+                 max_posts_per_query: Optional[int] = None,
+                 max_workers: Optional[int] = None):
         """
         Initialize Reddit scraper.
         
@@ -40,7 +41,7 @@ class RedditScraper(BaseScraper):
             subreddits: List of subreddits to search (default: ['all'])
             max_posts_per_query: Maximum posts to collect per query
         """
-        super().__init__(rate_limiter)
+        super().__init__(rate_limiter, max_workers)
         self.subreddits = subreddits or ['all']
         self.max_posts_per_query = max_posts_per_query
         self.config = config

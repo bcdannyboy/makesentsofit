@@ -75,8 +75,9 @@ class TwitterScraper(BaseScraper):
     official Twitter API.
     """
     
-    def __init__(self, rate_limiter: RateLimiter, 
-                 max_tweets_per_query: Optional[int] = None):
+    def __init__(self, rate_limiter: RateLimiter,
+                 max_tweets_per_query: Optional[int] = None,
+                 max_workers: Optional[int] = None):
         """
         Initialize Twitter scraper.
         
@@ -84,7 +85,7 @@ class TwitterScraper(BaseScraper):
             rate_limiter: Rate limiter instance
             max_tweets_per_query: Maximum tweets to collect per query
         """
-        super().__init__(rate_limiter)
+        super().__init__(rate_limiter, max_workers)
         self.max_tweets_per_query = max_tweets_per_query
         
         if not SNSCRAPE_AVAILABLE:
