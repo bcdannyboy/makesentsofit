@@ -1,0 +1,463 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ title }}</title>
+    <link rel="stylesheet" href="{{ timestamp }}_styles.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
+    <style>
+        /* Inline critical styles for immediate rendering */
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f5f5f5;
+            color: #333;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 40px;
+            border-radius: 10px;
+            margin-bottom: 30px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        .header h1 {
+            margin: 0;
+            font-size: 2.5em;
+        }
+        .header p {
+            margin: 10px 0;
+            opacity: 0.9;
+        }
+        .card {
+            background: white;
+            border-radius: 10px;
+            padding: 25px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+        }
+        .card h2 {
+            margin-top: 0;
+            color: #5a67d8;
+            font-size: 1.8em;
+            border-bottom: 2px solid #e2e8f0;
+            padding-bottom: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <h1>{{ title }}</h1>
+            <p>Generated on {{ generated_at }}</p>
+            <div class="header-meta">
+                <p><strong>Queries:</strong> {{ queries|join(', ') }}</p>
+                <p><strong>Time Window:</strong> {{ time_window }} days</p>
+                <p><strong>Platforms:</strong> {{ platforms|join(', ') }}</p>
+            </div>
+        </div>
+
+        <!-- Executive Summary -->
+        <div class="card" id="executive-summary">
+            <h2>Executive Summary</h2>
+            <div class="summary-grid">
+                <div class="summary-item">
+                    <h3>Total Posts Analyzed</h3>
+                    <p class="big-number">{{ total_posts }}</p>
+                </div>
+                <div class="summary-item">
+                    <h3>Unique Authors</h3>
+                    <p class="big-number">{{ unique_authors }}</p>
+                </div>
+                <div class="summary-item">
+                    <h3>Date Range</h3>
+                    <p class="big-number">{{ date_range_formatted }}</p>
+                </div>
+                <div class="summary-item">
+                    <h3>Overall Sentiment</h3>
+                    <p class="big-number {% if sentiment_ratio > 0 %}positive{% elif sentiment_ratio < 0 %}negative{% else %}neutral{% endif %}">
+                        {% if sentiment_ratio > 0 %}Positive{% elif sentiment_ratio < 0 %}Negative{% else %}Neutral{% endif %}
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Sentiment Distribution -->
+        <div class="card" id="sentiment-distribution">
+            <h2>Sentiment Distribution</h2>
+            <div class="chart-container">
+                <canvas id="sentimentPieChart" width="400" height="200"></canvas>
+            </div>
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>Sentiment</th>
+                        <th>Count</th>
+                        <th>Percentage</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for sentiment, count in sentiment_counts.items() %}
+                    <tr>
+                        <td class="sentiment-label {{ sentiment|lower }}">{{ sentiment }}</td>
+                        <td>{{ count }}</td>
+                        <td>{{ sentiment_percentages[sentiment]|format_percentage }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Sentiment Timeline -->
+        <div class="card" id="sentiment-timeline">
+            <h2>Sentiment Timeline</h2>
+            <div class="chart-container">
+                <canvas id="sentimentTimelineChart" width="800" height="400"></canvas>
+            </div>
+            {% if trends %}
+            <div class="trend-info">
+                <p><strong>Overall Trend:</strong> 
+                    <span class="trend-badge {{ trends.overall_trend }}">{{ trends.overall_trend|title }}</span>
+                </p>
+                <p><strong>Trend Strength:</strong> {{ trends.trend_strength|format_number }}</p>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Engagement Analysis -->
+        <div class="card" id="engagement-analysis">
+            <h2>Engagement Analysis</h2>
+            <div class="stats-grid">
+                {% for key, value in engagement_stats.items() %}
+                <div class="stat-item">
+                    <h4>{{ key|replace('_', ' ')|title }}</h4>
+                    <p>{{ value }}</p>
+                </div>
+                {% endfor %}
+            </div>
+            
+            {% if viral_posts %}
+            <h3>Top Viral Posts</h3>
+            <div class="viral-posts">
+                {% for post in viral_posts[:5] %}
+                <div class="viral-post">
+                    <div class="post-header">
+                        <span class="platform-badge {{ post.platform }}">{{ post.platform|title }}</span>
+                        <span class="author">@{{ post.author }}</span>
+                        <span class="engagement">{{ post.engagement|format_number }} engagements</span>
+                    </div>
+                    <p class="post-content">{{ post.content_preview|truncate_text(200) }}</p>
+                    <a href="{{ post.url }}" target="_blank" class="post-link">View Post →</a>
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Platform Analysis -->
+        <div class="card" id="platform-analysis">
+            <h2>Platform Analysis</h2>
+            <div class="chart-container">
+                <canvas id="platformChart" width="400" height="200"></canvas>
+            </div>
+            
+            {% if platform_sentiment %}
+            <h3>Sentiment by Platform</h3>
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>Platform</th>
+                        <th>Positive</th>
+                        <th>Negative</th>
+                        <th>Neutral</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for platform, sentiments in platform_sentiment.items() %}
+                    <tr>
+                        <td>{{ platform|title }}</td>
+                        <td>{{ sentiments.get('POSITIVE', 0) }}</td>
+                        <td>{{ sentiments.get('NEGATIVE', 0) }}</td>
+                        <td>{{ sentiments.get('NEUTRAL', 0) }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% endif %}
+        </div>
+
+        <!-- Negative Users Analysis -->
+        {% if top_negative_users %}
+        <div class="card" id="negative-users">
+            <h2>Consistently Negative Users</h2>
+            <p>Found {{ negative_users_count }} users with negative sentiment ratio ≥ 60%</p>
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>Author</th>
+                        <th>Platform</th>
+                        <th>Posts</th>
+                        <th>Negative Ratio</th>
+                        <th>Sentiment Breakdown</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for user in top_negative_users[:10] %}
+                    <tr>
+                        <td>{{ user.author }}</td>
+                        <td>{{ user.platform }}</td>
+                        <td>{{ user.post_count }}</td>
+                        <td class="negative">{{ user.negative_ratio|format_percentage }}</td>
+                        <td>
+                            <span class="sentiment-breakdown">
+                                <span class="positive">+{{ user.positive_posts }}</span> /
+                                <span class="negative">-{{ user.negative_posts }}</span> /
+                                <span class="neutral">{{ user.neutral_posts }}</span>
+                            </span>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% endif %}
+
+        <!-- Anomalies -->
+        {% if anomalies %}
+        <div class="card" id="anomalies">
+            <h2>Detected Anomalies</h2>
+            <div class="anomaly-list">
+                {% for anomaly in anomalies %}
+                <div class="anomaly-item {{ anomaly.severity }}">
+                    <div class="anomaly-header">
+                        <span class="anomaly-date">{{ anomaly.date }}</span>
+                        <span class="anomaly-type {{ anomaly.type }}">{{ anomaly.type|replace('_', ' ')|title }}</span>
+                        <span class="anomaly-severity">{{ anomaly.severity|upper }}</span>
+                    </div>
+                    <p>Z-Score: {{ anomaly.z_score|format_number }} | Posts: {{ anomaly.post_count }}</p>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Hashtags -->
+        {% if top_hashtags %}
+        <div class="card" id="hashtags">
+            <h2>Top Hashtags</h2>
+            <div class="hashtag-cloud">
+                {% for tag, count in top_hashtags %}
+                <span class="hashtag" style="font-size: {{ (count / top_hashtags[0][1] * 20 + 12)|int }}px">
+                    #{{ tag }} ({{ count }})
+                </span>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Processing Metadata -->
+        <div class="card" id="processing-metadata">
+            <h2>Processing Information</h2>
+            <div class="metadata-grid">
+                {% if deduplication_stats %}
+                <div class="metadata-item">
+                    <h4>Deduplication</h4>
+                    <p>Total Posts: {{ deduplication_stats.total_posts|format_number }}</p>
+                    <p>Unique Posts: {{ deduplication_stats.unique_posts|format_number }}</p>
+                    <p>Duplicates Removed: {{ deduplication_stats.duplicates_removed|format_number }}</p>
+                </div>
+                {% endif %}
+                
+                {% if processing_time %}
+                <div class="metadata-item">
+                    <h4>Performance</h4>
+                    <p>Processing Time: {{ processing_time|format_number }}s</p>
+                    <p>Posts per Second: {{ (total_posts|int / processing_time)|format_number }}</p>
+                </div>
+                {% endif %}
+                
+                {% if volatility %}
+                <div class="metadata-item">
+                    <h4>Volatility Analysis</h4>
+                    <p>Overall: {{ volatility.overall|format_number }}</p>
+                    <p>Daily: {{ volatility.daily|format_number }}</p>
+                    <p>Hourly: {{ volatility.hourly|format_number }}</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="footer">
+            <p>Generated by MakeSenseOfIt v1.0.0 | {{ generated_at }}</p>
+        </div>
+    </div>
+
+    <!-- JavaScript for Charts -->
+    <script>
+        // Chart.js configuration
+        Chart.defaults.font.family = '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+        
+        // Sentiment Pie Chart
+        {% if chart_data.sentiment_pie %}
+        const sentimentPieCtx = document.getElementById('sentimentPieChart').getContext('2d');
+        const sentimentPieChart = new Chart(sentimentPieCtx, {
+            type: 'doughnut',
+            data: {
+                labels: {{ chart_data.sentiment_pie.labels|tojson }},
+                datasets: [{
+                    data: {{ chart_data.sentiment_pie.data|tojson }},
+                    backgroundColor: [
+                        {{ chart_data.sentiment_pie.colors.POSITIVE|default('#4CAF50')|tojson }},
+                        {{ chart_data.sentiment_pie.colors.NEGATIVE|default('#f44336')|tojson }},
+                        {{ chart_data.sentiment_pie.colors.NEUTRAL|default('#9E9E9E')|tojson }}
+                    ],
+                    borderWidth: 2,
+                    borderColor: '#fff'
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'right',
+                        labels: {
+                            padding: 20,
+                            font: {
+                                size: 14
+                            }
+                        }
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                const label = context.label || '';
+                                const value = context.parsed;
+                                const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                                const percentage = ((value / total) * 100).toFixed(1);
+                                return `${label}: ${value.toLocaleString()} (${percentage}%)`;
+                            }
+                        }
+                    }
+                }
+            }
+        });
+        {% endif %}
+        
+        // Sentiment Timeline Chart
+        {% if chart_data.sentiment_timeline %}
+        const timelineCtx = document.getElementById('sentimentTimelineChart').getContext('2d');
+        const timelineChart = new Chart(timelineCtx, {
+            type: 'line',
+            data: {
+                labels: {{ chart_data.sentiment_timeline.dates|tojson }},
+                datasets: [
+                    {
+                        label: 'Positive',
+                        data: {{ chart_data.sentiment_timeline.positive|tojson }},
+                        borderColor: '#4CAF50',
+                        backgroundColor: 'rgba(76, 175, 80, 0.1)',
+                        tension: 0.2
+                    },
+                    {
+                        label: 'Negative',
+                        data: {{ chart_data.sentiment_timeline.negative|tojson }},
+                        borderColor: '#f44336',
+                        backgroundColor: 'rgba(244, 67, 54, 0.1)',
+                        tension: 0.2
+                    },
+                    {
+                        label: 'Neutral',
+                        data: {{ chart_data.sentiment_timeline.neutral|tojson }},
+                        borderColor: '#9E9E9E',
+                        backgroundColor: 'rgba(158, 158, 158, 0.1)',
+                        tension: 0.2
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                interaction: {
+                    mode: 'index',
+                    intersect: false,
+                },
+                plugins: {
+                    legend: {
+                        position: 'top',
+                    },
+                    tooltip: {
+                        mode: 'index',
+                        intersect: false,
+                    }
+                },
+                scales: {
+                    x: {
+                        title: {
+                            display: true,
+                            text: 'Date'
+                        }
+                    },
+                    y: {
+                        title: {
+                            display: true,
+                            text: 'Number of Posts'
+                        },
+                        beginAtZero: true
+                    }
+                }
+            }
+        });
+        {% endif %}
+        
+        // Platform Comparison Chart
+        {% if chart_data.platform_comparison %}
+        const platformCtx = document.getElementById('platformChart').getContext('2d');
+        const platformChart = new Chart(platformCtx, {
+            type: 'bar',
+            data: {
+                labels: {{ chart_data.platform_comparison.platforms|tojson }},
+                datasets: [{
+                    label: 'Posts by Platform',
+                    data: {{ chart_data.platform_comparison.counts|tojson }},
+                    backgroundColor: [
+                        '#1DA1F2',  // Twitter blue
+                        '#FF4500',  // Reddit orange
+                        '#4267B2',  // Facebook blue
+                        '#E1306C'   // Instagram pink
+                    ],
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        display: false
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        title: {
+                            display: true,
+                            text: 'Number of Posts'
+                        }
+                    }
+                }
+            }
+        });
+        {% endif %}
+    </script>
+</body>
+</html>

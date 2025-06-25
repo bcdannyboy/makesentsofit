@@ -17,6 +17,9 @@ from src.config import Config
 from src.logger import setup_logging, get_logger, log_success, log_error, log_warning
 from src.utils import ensure_directory, generate_timestamp, save_json
 from src.scrapers import create_scrapers
+from src.sentiment.analyzer import SentimentAnalyzer
+from src.processing import Deduplicator, DataAggregator, TimeSeriesAnalyzer
+from src.export import DataFormatter, ExportWriter
 
 # Version
 __version__ = '1.0.0'
@@ -214,24 +217,23 @@ def main(queries, time, platforms, output, format, visualize, verbose, config, l
                 click.echo(f"  • {platform.capitalize()}: {stats['posts_collected']} posts "
                           f"({stats['posts_per_query']:.1f} per query)")
         
-        # Save raw data (Phase 2 output)
         if all_posts:
-            # Save posts to JSON for debugging/inspection
+            # Save raw data (Phase 2 output)
             raw_data_file = output_dir / f"{output}_raw_posts.json"
             posts_data = [post.to_dict() for post in all_posts]
             save_json({'posts': posts_data, 'metadata': platform_stats}, raw_data_file)
             logger.debug(f"Saved raw posts to: {raw_data_file}")
             
             click.echo(f"\n✅ Phase 2 complete! Collected {len(all_posts)} posts.")
-            click.echo("📝 Ready for Phase 3: Sentiment Analysis")
-
+            
             # Phase 3: Sentiment Analysis
-            from src.sentiment.analyzer import SentimentAnalyzer
-
             click.echo("\n🧠 Starting Phase 3: Sentiment Analysis")
+            click.echo("="*50)
+            
             analyzer = SentimentAnalyzer(cfg.sentiment_model)
             batch_size = cfg.batch_size
 
+            click.echo(f"Analyzing sentiment for {len(all_posts)} posts...")
             for i in range(0, len(all_posts), batch_size):
                 batch = all_posts[i:i + batch_size]
                 analyzer.analyze_posts(batch)
@@ -245,25 +247,168 @@ def main(queries, time, platforms, output, format, visualize, verbose, config, l
                     if label in sentiment_counts:
                         sentiment_counts[label] += 1
 
-            click.echo("✅ Sentiment analysis complete:")
+            click.echo("\n✅ Sentiment analysis complete:")
             click.echo(f"  😊 Positive: {sentiment_counts['POSITIVE']}")
             click.echo(f"  😔 Negative: {sentiment_counts['NEGATIVE']}")
             click.echo(f"  😐 Neutral: {sentiment_counts['NEUTRAL']}")
 
             # Save sentiment results
             sentiment_file = output_dir / f"{output}_sentiment.json"
-            posts_with_sentiment = [post.to_dict() | {'sentiment': post.sentiment} for post in all_posts]
+            posts_with_sentiment = []
+            for post in all_posts:
+                post_dict = post.to_dict()
+                if hasattr(post, 'sentiment'):
+                    post_dict['sentiment'] = post.sentiment
+                posts_with_sentiment.append(post_dict)
             save_json({'posts': posts_with_sentiment, 'summary': sentiment_counts}, sentiment_file)
+            
+            # Phase 4: Data Processing
+            click.echo("\n📊 Starting Phase 4: Data Processing")
+            click.echo("="*50)
+            
+            # Deduplication
+            click.echo("\n🔍 Deduplicating posts...")
+            dedup = Deduplicator()
+            unique_posts, dedup_stats = dedup.deduplicate(all_posts)
+            click.echo(f"  ✓ Removed {dedup_stats['duplicates_removed']} duplicates")
+            click.echo(f"  ✓ Unique posts: {len(unique_posts)}")
+            
+            # Aggregation
+            click.echo("\n📈 Aggregating statistics...")
+            aggregator = DataAggregator()
+            agg_stats = aggregator.aggregate(unique_posts)
+            click.echo(f"  ✓ Analyzed {agg_stats['total_posts']} posts")
+            click.echo(f"  ✓ Found {agg_stats['authors']['unique_authors']} unique authors")
+            
+            # Time series analysis
+            click.echo("\n⏰ Analyzing time series...")
+            time_analyzer = TimeSeriesAnalyzer()
+            time_analysis = time_analyzer.analyze(unique_posts)
+            click.echo(f"  ✓ Analyzed {len(time_analysis['daily_sentiment'])} days")
+            click.echo(f"  ✓ Overall trend: {time_analysis['trends'].get('overall_trend', 'unknown')}")
+            
+            # Display processing summary
+            click.echo("\n📊 Processing Summary:")
+            click.echo(f"  • Sentiment ratio: {agg_stats['sentiment_distribution'].get('sentiment_ratio', 0):.3f}")
+            click.echo(f"  • Average engagement: {agg_stats['engagement'].get('avg_engagement', 0):.1f}")
+            click.echo(f"  • Negative users: {len(agg_stats.get('negative_users', []))}")
+            click.echo(f"  • Viral posts: {len(agg_stats.get('viral_posts', []))}")
+            click.echo(f"  • Anomalies detected: {len(time_analysis.get('anomalies', []))}")
+            
+            # Phase 5: Export and Storage
+            click.echo("\n💾 Starting Phase 5: Export and Storage")
+            click.echo("="*50)
+            
+            # Create formatter and writer
+            formatter = DataFormatter()
+            writer = ExportWriter(cfg.output_directory)
+            
+            # Prepare full context for export
+            export_context = {
+                'queries': query_list,
+                'time_window_days': time,
+                'platforms': platform_list,
+                'output_prefix': output,
+                'formats': format_list,
+                'visualize': visualize,
+                'version': __version__,
+                'start_time': context['start_time'],
+                'collection_time': context.get('collection_time', 0),
+                'posts': unique_posts,
+                'statistics': agg_stats,
+                'time_series': time_analysis,
+                'deduplication': dedup_stats
+            }
+            
+            # Export based on requested formats
+            exported_files = []
+            
+            if 'json' in format_list:
+                click.echo("\n📄 Exporting JSON...")
+                json_data = formatter.format_for_json(export_context)
+                filepath = writer.write_json(json_data, output)
+                exported_files.append(filepath)
+                click.echo(f"  ✓ Created: {filepath.name}")
+            
+            if 'csv' in format_list:
+                click.echo("\n📊 Exporting CSV files...")
+                csv_data = formatter.format_for_csv(export_context)
+                filepaths = writer.write_csv(csv_data, output)
+                exported_files.extend(filepaths)
+                for fp in filepaths:
+                    click.echo(f"  ✓ Created: {fp.name}")
+            
+            if 'html' in format_list:
+                click.echo("\n🌐 Generating HTML report...")
+                html_data = formatter.format_for_html(export_context)
+                filepath = writer.write_html(html_data, output)
+                exported_files.append(filepath)
+                click.echo(f"  ✓ Created: {filepath.name}")
+            
+            # Always create summary
+            click.echo("\n📋 Creating summary...")
+            summary_path = writer.write_summary(export_context, output)
+            exported_files.append(summary_path)
+            click.echo(f"  ✓ Created: {summary_path.name}")
+            
+            # Create archive if multiple files
+            if len(exported_files) > 3:
+                click.echo("\n🗜️  Creating archive...")
+                archive_path = writer.create_archive(exported_files, output)
+                if archive_path:
+                    click.echo(f"  ✓ Created: {archive_path.name}")
+            
+            click.echo(f"\n✅ Phase 5 complete! Exported {len(exported_files)} files")
+            click.echo(f"📁 Output directory: {writer.output_dir.absolute()}")
+            
+            # Final summary
+            click.echo("\n" + "="*50)
+            click.echo("🎉 Analysis Complete!")
+            click.echo("="*50)
+            
+            click.echo(f"\n📊 Final Results:")
+            click.echo(f"  • Total posts analyzed: {agg_stats['total_posts']:,}")
+            click.echo(f"  • Unique authors: {agg_stats['authors']['unique_authors']:,}")
+            click.echo(f"  • Date range: {agg_stats['date_range']['days']} days")
+            click.echo(f"  • Overall sentiment: ", end='')
+            
+            sentiment_ratio = agg_stats['sentiment_distribution'].get('sentiment_ratio', 0)
+            if sentiment_ratio > 0.1:
+                click.echo("Positive 😊")
+            elif sentiment_ratio < -0.1:
+                click.echo("Negative 😔")
+            else:
+                click.echo("Neutral 😐")
+            
+            click.echo(f"\n📁 All results saved to: {writer.output_dir.absolute()}")
+            
+            # Show file list
+            click.echo(f"\n📄 Generated files:")
+            for file in exported_files:
+                click.echo(f"  • {file.name}")
+            
+            # Open HTML report if generated
+            if 'html' in format_list:
+                html_file = next((f for f in exported_files if f.suffix == '.html'), None)
+                if html_file:
+                    click.echo(f"\n🌐 View report: file://{html_file.absolute()}")
+                    
+                    if not os.getenv('PYTEST_CURRENT_TEST'):  # Don't prompt during tests
+                        if click.confirm("\nOpen report in browser?"):
+                            import webbrowser
+                            webbrowser.open(f"file://{html_file.absolute()}")
+            
+            click.echo("\n✨ Thank you for using MakeSenseOfIt!")
+            
         else:
             click.echo("\n⚠️  No posts collected. Check your queries and try again.")
             sys.exit(1)
         
-        # Save context for next phases
+        # Save final context
         context_file = output_dir / f"{output}_context.json"
-        # Convert non-serializable objects
         context_copy = context.copy()
         context_copy['config'] = cfg.to_dict()
-        context_copy['posts'] = len(all_posts)  # Just save count
+        context_copy['posts'] = len(unique_posts) if 'unique_posts' in locals() else 0
         context_copy['start_time'] = context['start_time'].isoformat()
         save_json(context_copy, context_file)
         
