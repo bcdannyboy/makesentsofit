@@ -36,6 +36,9 @@ class Config:
     timeout: int = 30
     max_posts_per_query: Optional[int] = None
     
+    # Platform-specific configurations
+    reddit: Optional[Dict[str, Any]] = None
+    
     def __init__(self, config_file: Optional[str] = None):
         """
         Initialize configuration from defaults and optional file.
@@ -73,6 +76,7 @@ class Config:
         self.user_agent = 'MakeSenseOfIt/1.0'
         self.timeout = 30
         self.max_posts_per_query = None
+        self.reddit = None
     
     def _load_from_file(self, config_file: str):
         """

@@ -5,6 +5,11 @@
     "twitter": 50,
     "reddit": 60
   },
+  "reddit": {
+    "client_id": "I-s_rI6Yf2VKCckn8oUSGw",
+    "client_secret": "_P8YXzbyGHo8fQZa2NzqN432mgASLw",
+    "user_agent": "MakeSenseOfIt/1.0"
+  },
   "sentiment_model": "cardiffnlp/twitter-roberta-base-sentiment-latest",
   "visualization_style": "dark",
   "output_directory": "./output",

@@ -27,7 +27,8 @@ class RedditScraper(BaseScraper):
     authentication and can access public Reddit data.
     """
     
-    def __init__(self, rate_limiter: RateLimiter, 
+    def __init__(self, rate_limiter: RateLimiter,
+                 config: Optional['Config'] = None,
                  subreddits: Optional[List[str]] = None,
                  max_posts_per_query: Optional[int] = None):
         """
@@ -35,26 +36,41 @@ class RedditScraper(BaseScraper):
         
         Args:
             rate_limiter: Rate limiter instance
+            config: Application configuration containing Reddit credentials
             subreddits: List of subreddits to search (default: ['all'])
             max_posts_per_query: Maximum posts to collect per query
         """
         super().__init__(rate_limiter)
         self.subreddits = subreddits or ['all']
         self.max_posts_per_query = max_posts_per_query
+        self.config = config
         
         if not PRAW_AVAILABLE:
             logger.error("PRAW is not installed. Install with: pip install praw")
             raise ImportError("PRAW is required for Reddit scraping")
         
+        # Get Reddit credentials from config
+        if config and hasattr(config, 'reddit'):
+            reddit_config = config.reddit
+            client_id = reddit_config.get('client_id')
+            client_secret = reddit_config.get('client_secret')
+            user_agent = reddit_config.get('user_agent', 'MakeSenseOfIt/1.0')
+            logger.debug(f"Using Reddit credentials from config: client_id={client_id[:10]}...")
+        else:
+            logger.warning("No Reddit credentials found in config, using fallback values")
+            client_id = 'dummy'
+            client_secret = 'dummy'
+            user_agent = 'MakeSenseOfIt/1.0'
+        
         # Initialize PRAW in read-only mode
         try:
             self.reddit = praw.Reddit(
-                client_id='dummy',
-                client_secret='dummy',
-                user_agent='MakeSenseOfIt:v1.0 (by /u/makesentsofit)'
+                client_id=client_id,
+                client_secret=client_secret,
+                user_agent=user_agent
             )
             self.reddit.read_only = True
-            logger.debug("PRAW initialized in read-only mode")
+            logger.debug(f"PRAW initialized with user_agent: {user_agent}")
         except Exception as e:
             logger.error(f"Failed to initialize PRAW: {e}")
             raise
@@ -70,15 +86,22 @@ class RedditScraper(BaseScraper):
             return False
         
         try:
-            # Try to access a known subreddit
+            # Check if we're properly authenticated by verifying read_only status
+            if not self.reddit.read_only:
+                logger.warning("Reddit instance is not in read-only mode")
+            
+            # Try to access a known subreddit with proper error handling
             test_sub = self.reddit.subreddit('test')
-            _ = test_sub.id  # This will fail if connection is bad
+            _ = test_sub.display_name  # This will trigger API request
             
             logger.debug("Reddit connection validated successfully")
             return True
             
         except Exception as e:
             logger.error(f"Reddit connection validation failed: {e}")
+            # Log more details if it's an authentication error
+            if "401" in str(e) or "received 401 HTTP response" in str(e):
+                logger.error("Authentication failed - check Reddit API credentials in config.json")
             return False
     
     def scrape(self, query: str, start_date: datetime, 

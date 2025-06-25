@@ -2,13 +2,61 @@
 Twitter/X scraper implementation using snscrape.
 """
 import logging
+import ssl
+import urllib3
 from datetime import datetime
 from typing import List, Optional, Dict, Any
 import re
 
+# Disable SSL warnings and verification for demo purposes
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+
+# Set environment variable to disable SSL verification globally
+import os
+os.environ['PYTHONHTTPSVERIFY'] = '0'
+
 try:
     import snscrape.modules.twitter as sntwitter
+    import snscrape.base
+    import requests
+    import ssl
+    
     SNSCRAPE_AVAILABLE = True
+    
+    # Global SSL context with verification disabled
+    _ssl_context = ssl.create_default_context()
+    _ssl_context.check_hostname = False
+    _ssl_context.verify_mode = ssl.CERT_NONE
+    
+    # Monkey patch requests to disable SSL verification globally
+    original_request = requests.Session.request
+    
+    def patched_request(self, method, url, **kwargs):
+        kwargs['verify'] = False
+        return original_request(self, method, url, **kwargs)
+    
+    requests.Session.request = patched_request
+    
+    # Patch urllib3 to use no-verify SSL context
+    import urllib3.poolmanager
+    original_poolmanager_init = urllib3.poolmanager.PoolManager.__init__
+    
+    def patched_poolmanager_init(self, *args, **kwargs):
+        kwargs['ssl_context'] = _ssl_context
+        return original_poolmanager_init(self, *args, **kwargs)
+    
+    urllib3.poolmanager.PoolManager.__init__ = patched_poolmanager_init
+    
+    # Patch HTTPSConnectionPool
+    import urllib3.connectionpool
+    original_https_init = urllib3.connectionpool.HTTPSConnectionPool.__init__
+    
+    def patched_https_init(self, *args, **kwargs):
+        kwargs['ssl_context'] = _ssl_context
+        return original_https_init(self, *args, **kwargs)
+    
+    urllib3.connectionpool.HTTPSConnectionPool.__init__ = patched_https_init
+    
 except ImportError:
     SNSCRAPE_AVAILABLE = False
     sntwitter = None
@@ -54,8 +102,11 @@ class TwitterScraper(BaseScraper):
             return False
         
         try:
-            # Try a minimal search to test connection
-            scraper = sntwitter.TwitterSearchScraper('test', top=True)
+            # Try a minimal search to test connection using new mode syntax
+            scraper = sntwitter.TwitterSearchScraper(
+                'test',
+                mode=sntwitter.TwitterSearchScraperMode.TOP
+            )
             
             # Try to get just one tweet
             for i, tweet in enumerate(scraper.get_items()):

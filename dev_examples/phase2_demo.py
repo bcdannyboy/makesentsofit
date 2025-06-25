@@ -23,7 +23,7 @@ def demo_basic_scraping():
     # Setup
     setup_logging(verbose=True)
     logger = get_logger(__name__)
-    config = Config()
+    config = Config('config.json')
     
     # Parameters
     platforms = ['twitter', 'reddit']

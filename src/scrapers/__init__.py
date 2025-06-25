@@ -47,7 +47,7 @@ def create_scrapers(
             rate_limiter = RateLimiter(config.get_rate_limit('reddit'))
             subreddits = getattr(config, 'reddit_subreddits', ['all'])
             try:
-                scrapers['reddit'] = RedditScraper(rate_limiter, subreddits)
+                scrapers['reddit'] = RedditScraper(rate_limiter, config, subreddits)
                 logger.debug(f"Created Reddit scraper for subreddits: {subreddits}")
             except ImportError as e:
                 logger.warning(f"Skipping Reddit scraper: {e}")
