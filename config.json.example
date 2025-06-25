@@ -1,0 +1,22 @@
+{
+  "default_platforms": ["reddit"],
+  "default_time_window": 365,
+  "rate_limits": {
+    "twitter": 50,
+    "reddit": 60
+  },
+  "reddit": {
+    "client_id": "reddit_client_id",
+    "client_secret": "reddit_client_secret",
+    "user_agent": "MakeSenseOfIt/1.0"
+  },
+  "sentiment_model": "cardiffnlp/twitter-roberta-base-sentiment-latest",
+  "visualization_style": "dark",
+  "output_directory": "./output",
+  "cache_directory": "./cache",
+  "batch_size": 100,
+  "max_retries": 3,
+  "retry_delay": 1.0,
+  "user_agent": "MakeSenseOfIt/1.0",
+  "timeout": 30
+}
