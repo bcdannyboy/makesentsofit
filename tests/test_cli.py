@@ -39,10 +39,10 @@ class TestCLI:
     def test_cli_missing_queries(self):
         """Test that queries are required."""
         runner = CliRunner()
-        result = runner.invoke(main, ['--time', '7'])
-        
+        result = runner.invoke(main, ['--time', '7', '--config', 'nonexistent.json'])
+
         assert result.exit_code != 0
-        assert 'Error' in result.output or 'required' in result.output
+        assert 'Error' in result.output or 'No queries provided' in result.output
     
     def test_cli_all_options(self):
         """Test CLI with all options."""

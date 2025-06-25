@@ -35,6 +35,14 @@ class Config:
     user_agent: str = 'MakeSenseOfIt/1.0'
     timeout: int = 30
     max_posts_per_query: Optional[int] = None
+
+    # Analysis defaults loaded from config
+    queries: List[str] = field(default_factory=list)
+    output_formats: List[str] = field(default_factory=lambda: ['json'])
+    output_prefix: Optional[str] = None
+    visualize: bool = False
+    verbose: bool = False
+    limit: Optional[int] = None
     
     # Platform-specific configurations
     reddit: Optional[Dict[str, Any]] = None
@@ -77,6 +85,12 @@ class Config:
         self.timeout = 30
         self.max_posts_per_query = None
         self.reddit = None
+        self.queries = []
+        self.output_formats = ['json']
+        self.output_prefix = None
+        self.visualize = False
+        self.verbose = False
+        self.limit = None
     
     def _load_from_file(self, config_file: str):
         """

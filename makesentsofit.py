@@ -25,14 +25,14 @@ from src.export import DataFormatter, ExportWriter
 __version__ = '1.0.0'
 
 @click.command()
-@click.option('--queries', '-q', required=True, help='Comma-separated search queries')
-@click.option('--time', '-t', default=7, type=int, help='Days to look back')
-@click.option('--platforms', '-p', default='twitter,reddit', help='Platforms to scrape')
+@click.option('--queries', '-q', help='Comma-separated search queries')
+@click.option('--time', '-t', type=int, help='Days to look back')
+@click.option('--platforms', '-p', help='Platforms to scrape')
 @click.option('--output', '-o', help='Output file prefix')
-@click.option('--format', '-f', default='json', help='Output format(s): json,csv,html')
+@click.option('--format', '-f', help='Output format(s): json,csv,html')
 @click.option('--visualize', '-v', is_flag=True, help='Generate visualizations')
 @click.option('--verbose', is_flag=True, help='Verbose output')
-@click.option('--config', type=click.Path(exists=True), help='Config file path')
+@click.option('--config', type=click.Path(exists=True), default='config.json', show_default=True, help='Config file path')
 @click.option('--limit', type=int, help='Limit posts per query (for testing)')
 @click.version_option(version=__version__)
 def main(queries, time, platforms, output, format, visualize, verbose, config, limit):
@@ -44,19 +44,35 @@ def main(queries, time, platforms, output, format, visualize, verbose, config, l
         makesentsofit -q "climate change" -t 30 -p twitter,reddit -v
         makesentsofit -q "ai" -f json,csv,html -o ai_analysis
     """
-    # Setup logging first
-    setup_logging(verbose)
+    # Load configuration first to access default flags
+    cfg = Config(config_file=config)
+
+    # Setup logging using CLI or config verbosity
+    setup_logging(verbose or cfg.verbose)
     logger = get_logger(__name__)
-    
+
     try:
-        # Load configuration
         logger.debug(f"Loading configuration from: {config or 'defaults'}")
-        cfg = Config(config_file=config)
         
-        # Parse and validate arguments
-        query_list = [q.strip() for q in queries.split(',')]
-        platform_list = [p.strip().lower() for p in platforms.split(',')]
-        format_list = [f.strip().lower() for f in format.split(',')]
+        # Determine values from CLI or configuration
+        query_list = (
+            [q.strip() for q in queries.split(',')] if queries else cfg.queries
+        )
+        platform_list = (
+            [p.strip().lower() for p in platforms.split(',')]
+            if platforms
+            else cfg.default_platforms
+        )
+        format_list = (
+            [f.strip().lower() for f in format.split(',')]
+            if format
+            else cfg.output_formats
+        )
+        time = time if time is not None else cfg.default_time_window
+        output = output or cfg.output_prefix
+        visualize = visualize or cfg.visualize
+        verbose = verbose or cfg.verbose
+        limit = limit if limit is not None else cfg.limit
         
         # Validate arguments
         validation_errors = validate_cli_args(
