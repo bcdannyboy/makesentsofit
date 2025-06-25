@@ -1,6 +1,6 @@
 import networkx as nx
 import matplotlib.pyplot as plt
-from typing import List, Dict
+from typing import List, Dict, Any
 from collections import defaultdict
 
 
@@ -13,17 +13,20 @@ class NetworkGraphGenerator:
             return
 
         G = nx.Graph()
-        connections: Dict[str, Dict[str, int]] = defaultdict(lambda: defaultdict(int))
+        connections: Dict[tuple, Dict[str, Any]] = defaultdict(lambda: {"count": 0, "subreddits": set()})
 
         for post in posts:
             author = post.author
+            subreddit = post.metadata.get("subreddit")
             for mention in post.metadata.get("mentions", []):
-                connections[author][mention] += 1
+                key = (author, mention)
+                connections[key]["count"] += 1
+                if post.platform == "reddit" and subreddit:
+                    connections[key]["subreddits"].add(subreddit)
 
-        for author, mentions in connections.items():
-            for mention, count in mentions.items():
-                if count >= min_connections:
-                    G.add_edge(author, mention, weight=count)
+        for (author, mention), data in connections.items():
+            if data["count"] >= min_connections:
+                G.add_edge(author, mention, weight=data["count"], subreddits=list(data["subreddits"]))
 
         if len(G.nodes()) == 0:
             return

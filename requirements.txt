@@ -35,3 +35,4 @@ seaborn==0.13.2
 networkx==3.1
 wordcloud==1.9.2
 plotly==5.18.0
+openai==1.30.1

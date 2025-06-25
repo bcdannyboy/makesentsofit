@@ -23,6 +23,7 @@
   "retry_delay": 1.0,
   "user_agent": "MakeSenseOfIt/1.0",
   "timeout": 30,
+  "openai_api_key": "",
   "reddit_subreddits": [
     "all",
     "h3h3productions",

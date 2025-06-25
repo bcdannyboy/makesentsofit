@@ -36,6 +36,9 @@ class Config:
     timeout: int = 30
     max_posts_per_query: Optional[int] = None
 
+    # Optional OpenAI API key for ChatGPT-based sentiment analysis
+    openai_api_key: Optional[str] = None
+
     # Analysis defaults loaded from config
     queries: List[str] = field(default_factory=list)
     output_formats: List[str] = field(default_factory=lambda: ['json'])
@@ -85,6 +88,7 @@ class Config:
         self.user_agent = 'MakeSenseOfIt/1.0'
         self.timeout = 30
         self.max_posts_per_query = None
+        self.openai_api_key = None
         self.reddit = None
         self.reddit_subreddits = ['all']
         self.queries = []
