@@ -13,4 +13,14 @@ __all__ = ['Config', 'setup_logging', 'get_logger', 'SentimentAnalyzer']
 # Import main components for easier access
 from .config import Config
 from .logger import setup_logging, get_logger
-from .sentiment import SentimentAnalyzer
+
+# Lazy import for SentimentAnalyzer to avoid loading heavy dependencies
+_sentiment_analyzer = None
+
+def SentimentAnalyzer(*args, **kwargs):
+    """Lazy loader for SentimentAnalyzer."""
+    global _sentiment_analyzer
+    if _sentiment_analyzer is None:
+        from .sentiment import SentimentAnalyzer as _SA
+        _sentiment_analyzer = _SA
+    return _sentiment_analyzer(*args, **kwargs)

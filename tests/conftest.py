@@ -1,6 +1,12 @@
 """
 Pytest configuration and shared fixtures.
 """
+# Set environment variables before any imports to prevent TensorFlow crashes
+import os
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'  # Suppress TF logging
+os.environ['TRANSFORMERS_OFFLINE'] = '1'   # Prevent downloads
+os.environ['TOKENIZERS_PARALLELISM'] = 'false'  # Prevent tokenizer warnings
+
 import pytest
 import tempfile
 import shutil
