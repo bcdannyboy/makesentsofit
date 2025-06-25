@@ -38,6 +38,7 @@ class DataAggregator:
         self.negative_threshold = negative_threshold
         self.min_posts_for_analysis = min_posts_for_analysis
         self.max_workers = max_workers or max(1, (os.cpu_count() or 1))
+        print(f"max workers: {self.max_workers}")
     
     def aggregate(self, posts: List['Post']) -> Dict[str, Any]:
         """

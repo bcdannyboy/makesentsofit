@@ -1,8 +1,8 @@
 {
-  "queries": ["bitcoin"],
+  "queries": ["h3", "H3", "h3h3", "H3H3", "ethan klein", "Ethan Klein", "hila klein", "Hila Klein"],
   "output_formats": ["json"],
   "output_prefix": "analysis",
-  "visualize": false,
+  "visualize": true,
   "default_platforms": ["reddit"],
   "default_time_window": 365,
   "rate_limits": {
@@ -10,8 +10,8 @@
     "reddit": 60
   },
   "reddit": {
-    "client_id": "reddit_client_id",
-    "client_secret": "reddit_client_secret",
+    "client_id": "R5D5tGBCldzUC6B56me99g",
+    "client_secret": "iujrYggS49E1NXf4ceFRSXdxzbQ0mg",
     "user_agent": "MakeSenseOfIt/1.0"
   },
   "sentiment_model": "cardiffnlp/twitter-roberta-base-sentiment-latest",

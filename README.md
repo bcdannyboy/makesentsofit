@@ -53,3 +53,6 @@ Use `pytest` to run the unit tests:
 pytest
 ```
 
+## Limitations
+
+Twitter scraping doesn't seem to be working, but reddit scraping is - I'll fix twitter scraping down the line

@@ -6,3 +6,5 @@ output/
 .cache/
 cache/
 *.log
+
+config.json

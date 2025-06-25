@@ -38,6 +38,7 @@ class TimeSeriesAnalyzer:
         self.anomaly_threshold = anomaly_threshold
         self.min_data_points = min_data_points
         self.max_workers = max_workers or max(1, (os.cpu_count() or 1))
+        print(f"max workers: {self.max_workers}")
     
     def analyze(self, posts: List['Post']) -> Dict[str, Any]:
         """

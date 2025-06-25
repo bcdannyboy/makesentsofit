@@ -3,10 +3,27 @@ from __future__ import annotations
 
 import logging
 import os
+import platform
 
-# Avoid importing TensorFlow in transformers which can crash on some platforms
+# Comprehensive environment setup to prevent TensorFlow Metal backend issues on macOS
 os.environ.setdefault("TRANSFORMERS_NO_TF_IMPORTS", "1")
+os.environ.setdefault("TF_CPP_MIN_LOG_LEVEL", "3")
+os.environ.setdefault("CUDA_VISIBLE_DEVICES", "")
+# Prevent TensorFlow from registering Metal backend multiple times
+os.environ.setdefault("TF_DISABLE_METAL", "1")
+
 from typing import List, Dict
+
+# Detect if we're on Apple Silicon Mac where TensorFlow Metal causes issues
+def _is_apple_silicon():
+    """Check if running on Apple Silicon Mac."""
+    try:
+        return platform.system() == "Darwin" and platform.machine() == "arm64"
+    except Exception:
+        return False
+
+# Force disable transformers on Apple Silicon to prevent crashes
+FORCE_VADER_ONLY = _is_apple_silicon()
 
 from nltk.sentiment.vader import SentimentIntensityAnalyzer
 import nltk
@@ -50,10 +67,22 @@ class SentimentAnalyzer:
             return
         
         self._transformer_init_attempted = True
+        
+        # Skip transformer loading on Apple Silicon due to TensorFlow Metal issues
+        if FORCE_VADER_ONLY:
+            logger.info("Apple Silicon detected - using VADER sentiment analysis to avoid TensorFlow Metal issues")
+            self.transformer_available = False
+            self.transformer = None
+            return
+        
         try:
-            # Lazy import of transformers - only import when needed
-            # Avoid importing TensorFlow to prevent Metal backend issues on macOS
+            # Set comprehensive environment variables before any imports
             os.environ.setdefault("TRANSFORMERS_NO_TF_IMPORTS", "1")
+            os.environ.setdefault("TF_CPP_MIN_LOG_LEVEL", "3")
+            os.environ.setdefault("CUDA_VISIBLE_DEVICES", "")
+            os.environ.setdefault("TF_DISABLE_METAL", "1")
+            
+            # Lazy import of transformers - only import when needed
             from transformers import pipeline as tf_pipeline
             
             device = 0 if torch and hasattr(torch, 'cuda') and torch.cuda.is_available() else -1
@@ -63,7 +92,8 @@ class SentimentAnalyzer:
                 device=device,
                 truncation=True,
                 max_length=512,
-                framework="pt",
+                framework="pt",  # Force PyTorch framework
+                return_all_scores=False,  # Only return top prediction
             )
             self.transformer_available = True
             logger.info("Loaded transformer model: %s", self.model_name)

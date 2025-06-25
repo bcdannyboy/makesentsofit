@@ -105,6 +105,7 @@ class BaseScraper(ABC):
         """
         self.rate_limiter = rate_limiter
         self.max_workers = max_workers or max(1, (os.cpu_count() or 1))
+        print(f"max workers: {self.max_workers}")
         self._lock = Lock()
         self.posts_collected = 0
         self.errors_count = 0

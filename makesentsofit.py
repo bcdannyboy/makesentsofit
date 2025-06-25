@@ -84,7 +84,7 @@ def main(queries, time, platforms, output, format, visualize, verbose, config, l
         
         if validation_errors:
             for error in validation_errors:
-                click.echo(f"❌ {error}", err=True)
+                print(f"❌ {error}", err=True)
             sys.exit(1)
         
         # Generate output prefix if not provided
@@ -112,44 +112,44 @@ def main(queries, time, platforms, output, format, visualize, verbose, config, l
         }
         
         # Display header
-        click.echo("\n" + "="*50)
-        click.echo("🔍 MakeSenseOfIt - Social Media Sentiment Analysis")
-        click.echo("="*50)
+        print("\n" + "="*50)
+        print("🔍 MakeSenseOfIt - Social Media Sentiment Analysis")
+        print("="*50)
         
         # Log configuration
-        click.echo(f"\n📋 Configuration:")
-        click.echo(f"  • Queries: {', '.join(query_list)}")
-        click.echo(f"  • Time window: {time} days")
-        click.echo(f"  • Platforms: {', '.join(platform_list)}")
-        click.echo(f"  • Output formats: {', '.join(format_list)}")
-        click.echo(f"  • Output prefix: {output}")
-        click.echo(f"  • Visualizations: {'Yes' if visualize else 'No'}")
+        print(f"\n📋 Configuration:")
+        print(f"  • Queries: {', '.join(query_list)}")
+        print(f"  • Time window: {time} days")
+        print(f"  • Platforms: {', '.join(platform_list)}")
+        print(f"  • Output formats: {', '.join(format_list)}")
+        print(f"  • Output prefix: {output}")
+        print(f"  • Visualizations: {'Yes' if visualize else 'No'}")
         if limit:
-            click.echo(f"  • Post limit: {limit} per query")
+            print(f"  • Post limit: {limit} per query")
         
         if verbose:
-            click.echo(f"\n🔧 Advanced Settings:")
-            click.echo(f"  • Config file: {config or 'Using defaults'}")
-            click.echo(f"  • Output directory: {output_dir}")
-            click.echo(f"  • Cache directory: {cfg.cache_directory}")
-            click.echo(f"  • Sentiment model: {cfg.sentiment_model}")
+            print(f"\n🔧 Advanced Settings:")
+            print(f"  • Config file: {config or 'Using defaults'}")
+            print(f"  • Output directory: {output_dir}")
+            print(f"  • Cache directory: {cfg.cache_directory}")
+            print(f"  • Sentiment model: {cfg.sentiment_model}")
             
-            click.echo(f"\n⚡ Rate Limits:")
+            print(f"\n⚡ Rate Limits:")
             for platform in platform_list:
                 limit_val = cfg.get_rate_limit(platform)
-                click.echo(f"  • {platform}: {limit_val} requests/minute")
+                print(f"  • {platform}: {limit_val} requests/minute")
         
         # Phase 1: Configuration validation complete
-        click.echo("\n✅ Configuration validated successfully!")
+        print("\n✅ Configuration validated successfully!")
         
         # Skip heavy scraping when running unit tests
         if os.getenv('PYTEST_CURRENT_TEST'):
-            click.echo("\n⚠️  Test environment detected - skipping data collection")
+            print("\n⚠️  Test environment detected - skipping data collection")
             return context
 
         # Phase 2: Data Collection
-        click.echo("\n📡 Starting Phase 2: Data Collection")
-        click.echo("="*50)
+        print("\n📡 Starting Phase 2: Data Collection")
+        print("="*50)
         
         # Create scrapers
         scrapers = create_scrapers(platform_list, cfg)
@@ -159,10 +159,10 @@ def main(queries, time, platforms, output, format, visualize, verbose, config, l
         end_date = datetime.now()
         start_date = end_date - timedelta(days=time)
         
-        click.echo(f"\n📅 Date range: {start_date.strftime('%Y-%m-%d')} to {end_date.strftime('%Y-%m-%d')}")
+        print(f"\n📅 Date range: {start_date.strftime('%Y-%m-%d')} to {end_date.strftime('%Y-%m-%d')}")
         
         # Validate scrapers
-        click.echo("\n🔌 Validating connections:")
+        print("\n🔌 Validating connections:")
         valid_scrapers = {}
         for platform, scraper in scrapers.items():
             if limit:
@@ -175,16 +175,16 @@ def main(queries, time, platforms, output, format, visualize, verbose, config, l
                 log_error(f"{platform.capitalize()}: Connection failed")
         
         if not valid_scrapers:
-            click.echo("\n❌ No valid scrapers available. Check your internet connection.")
+            print("\n❌ No valid scrapers available. Check your internet connection.")
             sys.exit(1)
         
         # Collect data
-        click.echo(f"\n🔍 Collecting data from {len(valid_scrapers)} platforms...")
+        print(f"\n🔍 Collecting data from {len(valid_scrapers)} platforms...")
         all_posts = []
         platform_stats = {}
         
         for platform, scraper in valid_scrapers.items():
-            click.echo(f"\n📥 Scraping {platform.capitalize()}...")
+            print(f"\n📥 Scraping {platform.capitalize()}...")
             platform_start = datetime.now()
             
             try:
@@ -209,7 +209,7 @@ def main(queries, time, platforms, output, format, visualize, verbose, config, l
                         query_counts[post.query] = query_counts.get(post.query, 0) + 1
                     
                     for query, count in query_counts.items():
-                        click.echo(f"    • '{query}': {count} posts")
+                        print(f"    • '{query}': {count} posts")
                 
             except Exception as e:
                 log_error(f"{platform.capitalize()} error: {str(e)}")
@@ -224,13 +224,13 @@ def main(queries, time, platforms, output, format, visualize, verbose, config, l
         context['collection_time'] = (datetime.now() - context['start_time']).total_seconds()
         
         # Summary
-        click.echo(f"\n📊 Data Collection Summary:")
-        click.echo(f"  • Total posts collected: {len(all_posts)}")
-        click.echo(f"  • Collection time: {context['collection_time']:.1f}s")
+        print(f"\n📊 Data Collection Summary:")
+        print(f"  • Total posts collected: {len(all_posts)}")
+        print(f"  • Collection time: {context['collection_time']:.1f}s")
         
         for platform, stats in platform_stats.items():
             if 'error' not in stats:
-                click.echo(f"  • {platform.capitalize()}: {stats['posts_collected']} posts "
+                print(f"  • {platform.capitalize()}: {stats['posts_collected']} posts "
                           f"({stats['posts_per_query']:.1f} per query)")
         
         if all_posts:
@@ -240,21 +240,21 @@ def main(queries, time, platforms, output, format, visualize, verbose, config, l
             save_json({'posts': posts_data, 'metadata': platform_stats}, raw_data_file)
             logger.debug(f"Saved raw posts to: {raw_data_file}")
             
-            click.echo(f"\n✅ Phase 2 complete! Collected {len(all_posts)} posts.")
+            print(f"\n✅ Phase 2 complete! Collected {len(all_posts)} posts.")
             
             # Phase 3: Sentiment Analysis
-            click.echo("\n🧠 Starting Phase 3: Sentiment Analysis")
-            click.echo("="*50)
+            print("\n🧠 Starting Phase 3: Sentiment Analysis")
+            print("="*50)
             
             analyzer = SentimentAnalyzer(cfg.sentiment_model)
             batch_size = cfg.batch_size
 
-            click.echo(f"Analyzing sentiment for {len(all_posts)} posts...")
+            print(f"Analyzing sentiment for {len(all_posts)} posts...")
             for i in range(0, len(all_posts), batch_size):
                 batch = all_posts[i:i + batch_size]
                 analyzer.analyze_posts(batch)
                 progress = min(i + batch_size, len(all_posts))
-                click.echo(f"  Processed {progress}/{len(all_posts)} posts...")
+                print(f"  Processed {progress}/{len(all_posts)} posts...")
 
             sentiment_counts = {'POSITIVE': 0, 'NEGATIVE': 0, 'NEUTRAL': 0}
             for post in all_posts:
@@ -263,10 +263,10 @@ def main(queries, time, platforms, output, format, visualize, verbose, config, l
                     if label in sentiment_counts:
                         sentiment_counts[label] += 1
 
-            click.echo("\n✅ Sentiment analysis complete:")
-            click.echo(f"  😊 Positive: {sentiment_counts['POSITIVE']}")
-            click.echo(f"  😔 Negative: {sentiment_counts['NEGATIVE']}")
-            click.echo(f"  😐 Neutral: {sentiment_counts['NEUTRAL']}")
+            print("\n✅ Sentiment analysis complete:")
+            print(f"  😊 Positive: {sentiment_counts['POSITIVE']}")
+            print(f"  😔 Negative: {sentiment_counts['NEGATIVE']}")
+            print(f"  😐 Neutral: {sentiment_counts['NEUTRAL']}")
 
             # Save sentiment results
             sentiment_file = output_dir / f"{output}_sentiment.json"
@@ -279,41 +279,41 @@ def main(queries, time, platforms, output, format, visualize, verbose, config, l
             save_json({'posts': posts_with_sentiment, 'summary': sentiment_counts}, sentiment_file)
             
             # Phase 4: Data Processing
-            click.echo("\n📊 Starting Phase 4: Data Processing")
-            click.echo("="*50)
+            print("\n📊 Starting Phase 4: Data Processing")
+            print("="*50)
             
             # Deduplication
-            click.echo("\n🔍 Deduplicating posts...")
+            print("\n🔍 Deduplicating posts...")
             dedup = Deduplicator()
             unique_posts, dedup_stats = dedup.deduplicate(all_posts)
-            click.echo(f"  ✓ Removed {dedup_stats['duplicates_removed']} duplicates")
-            click.echo(f"  ✓ Unique posts: {len(unique_posts)}")
+            print(f"  ✓ Removed {dedup_stats['duplicates_removed']} duplicates")
+            print(f"  ✓ Unique posts: {len(unique_posts)}")
             
             # Aggregation
-            click.echo("\n📈 Aggregating statistics...")
+            print("\n📈 Aggregating statistics...")
             aggregator = DataAggregator()
             agg_stats = aggregator.aggregate(unique_posts)
-            click.echo(f"  ✓ Analyzed {agg_stats['total_posts']} posts")
-            click.echo(f"  ✓ Found {agg_stats['authors']['unique_authors']} unique authors")
+            print(f"  ✓ Analyzed {agg_stats['total_posts']} posts")
+            print(f"  ✓ Found {agg_stats['authors']['unique_authors']} unique authors")
             
             # Time series analysis
-            click.echo("\n⏰ Analyzing time series...")
+            print("\n⏰ Analyzing time series...")
             time_analyzer = TimeSeriesAnalyzer()
             time_analysis = time_analyzer.analyze(unique_posts)
-            click.echo(f"  ✓ Analyzed {len(time_analysis['daily_sentiment'])} days")
-            click.echo(f"  ✓ Overall trend: {time_analysis['trends'].get('overall_trend', 'unknown')}")
+            print(f"  ✓ Analyzed {len(time_analysis['daily_sentiment'])} days")
+            print(f"  ✓ Overall trend: {time_analysis['trends'].get('overall_trend', 'unknown')}")
             
             # Display processing summary
-            click.echo("\n📊 Processing Summary:")
-            click.echo(f"  • Sentiment ratio: {agg_stats['sentiment_distribution'].get('sentiment_ratio', 0):.3f}")
-            click.echo(f"  • Average engagement: {agg_stats['engagement'].get('avg_engagement', 0):.1f}")
-            click.echo(f"  • Negative users: {len(agg_stats.get('negative_users', []))}")
-            click.echo(f"  • Viral posts: {len(agg_stats.get('viral_posts', []))}")
-            click.echo(f"  • Anomalies detected: {len(time_analysis.get('anomalies', []))}")
+            print("\n📊 Processing Summary:")
+            print(f"  • Sentiment ratio: {agg_stats['sentiment_distribution'].get('sentiment_ratio', 0):.3f}")
+            print(f"  • Average engagement: {agg_stats['engagement'].get('avg_engagement', 0):.1f}")
+            print(f"  • Negative users: {len(agg_stats.get('negative_users', []))}")
+            print(f"  • Viral posts: {len(agg_stats.get('viral_posts', []))}")
+            print(f"  • Anomalies detected: {len(time_analysis.get('anomalies', []))}")
             
             # Phase 5: Export and Storage
-            click.echo("\n💾 Starting Phase 5: Export and Storage")
-            click.echo("="*50)
+            print("\n💾 Starting Phase 5: Export and Storage")
+            print("="*50)
             
             # Create formatter and writer
             formatter = DataFormatter()
@@ -340,43 +340,43 @@ def main(queries, time, platforms, output, format, visualize, verbose, config, l
             exported_files = []
             
             if 'json' in format_list:
-                click.echo("\n📄 Exporting JSON...")
+                print("\n📄 Exporting JSON...")
                 json_data = formatter.format_for_json(export_context)
                 filepath = writer.write_json(json_data, output)
                 exported_files.append(filepath)
-                click.echo(f"  ✓ Created: {filepath.name}")
+                print(f"  ✓ Created: {filepath.name}")
             
             if 'csv' in format_list:
-                click.echo("\n📊 Exporting CSV files...")
+                print("\n📊 Exporting CSV files...")
                 csv_data = formatter.format_for_csv(export_context)
                 filepaths = writer.write_csv(csv_data, output)
                 exported_files.extend(filepaths)
                 for fp in filepaths:
-                    click.echo(f"  ✓ Created: {fp.name}")
+                    print(f"  ✓ Created: {fp.name}")
             
             if 'html' in format_list:
-                click.echo("\n🌐 Generating HTML report...")
+                print("\n🌐 Generating HTML report...")
                 html_data = formatter.format_for_html(export_context)
                 filepath = writer.write_html(html_data, output)
                 exported_files.append(filepath)
-                click.echo(f"  ✓ Created: {filepath.name}")
+                print(f"  ✓ Created: {filepath.name}")
             
             # Always create summary
-            click.echo("\n📋 Creating summary...")
+            print("\n📋 Creating summary...")
             summary_path = writer.write_summary(export_context, output)
             exported_files.append(summary_path)
-            click.echo(f"  ✓ Created: {summary_path.name}")
+            print(f"  ✓ Created: {summary_path.name}")
             
             # Create archive if multiple files
             if len(exported_files) > 3:
-                click.echo("\n🗜️  Creating archive...")
+                print("\n🗜️  Creating archive...")
                 archive_path = writer.create_archive(exported_files, output)
                 if archive_path:
-                    click.echo(f"  ✓ Created: {archive_path.name}")
+                    print(f"  ✓ Created: {archive_path.name}")
 
             # Phase 6: Visualization
             if visualize:
-                click.echo("\n📊 Generating visualizations...")
+                print("\n📊 Generating visualizations...")
                 from src.visualization import (
                     ChartGenerator,
                     NetworkGraphGenerator,
@@ -394,7 +394,7 @@ def main(queries, time, platforms, output, format, visualize, verbose, config, l
                         export_context["time_series"]["daily_sentiment"],
                         str(output_dir / f"{output}_timeline.png"),
                     )
-                    click.echo("  ✓ Sentiment timeline")
+                    print("  ✓ Sentiment timeline")
 
                 dist_counts = export_context.get("statistics", {}).get("sentiment_distribution", {}).get("counts", {})
                 if dist_counts:
@@ -402,13 +402,13 @@ def main(queries, time, platforms, output, format, visualize, verbose, config, l
                         dist_counts,
                         str(output_dir / f"{output}_sentiment_pie.png"),
                     )
-                    click.echo("  ✓ Sentiment distribution")
+                    print("  ✓ Sentiment distribution")
 
                 network.create_user_network(
                     export_context["posts"],
                     str(output_dir / f"{output}_network.png"),
                 )
-                click.echo("  ✓ User network graph")
+                print("  ✓ User network graph")
 
                 wordcloud.create_wordcloud(
                     export_context["posts"],
@@ -419,7 +419,7 @@ def main(queries, time, platforms, output, format, visualize, verbose, config, l
                     str(output_dir / f"{output}_wordcloud_negative.png"),
                     sentiment_filter="NEGATIVE",
                 )
-                click.echo("  ✓ Word clouds")
+                print("  ✓ Word clouds")
 
                 if export_context.get("time_series", {}).get("daily_sentiment"):
                     interactive.create_interactive_timeline(
@@ -430,52 +430,52 @@ def main(queries, time, platforms, output, format, visualize, verbose, config, l
                         export_context["posts"],
                         str(output_dir / f"{output}_3d_scatter.html"),
                     )
-                    click.echo("  ✓ Interactive visualizations")
+                    print("  ✓ Interactive visualizations")
 
-            click.echo(f"\n✅ Phase 5 complete! Exported {len(exported_files)} files")
-            click.echo(f"📁 Output directory: {writer.output_dir.absolute()}")
+            print(f"\n✅ Phase 5 complete! Exported {len(exported_files)} files")
+            print(f"📁 Output directory: {writer.output_dir.absolute()}")
             
             # Final summary
-            click.echo("\n" + "="*50)
-            click.echo("🎉 Analysis Complete!")
-            click.echo("="*50)
+            print("\n" + "="*50)
+            print("🎉 Analysis Complete!")
+            print("="*50)
             
-            click.echo(f"\n📊 Final Results:")
-            click.echo(f"  • Total posts analyzed: {agg_stats['total_posts']:,}")
-            click.echo(f"  • Unique authors: {agg_stats['authors']['unique_authors']:,}")
-            click.echo(f"  • Date range: {agg_stats['date_range']['days']} days")
-            click.echo(f"  • Overall sentiment: ", end='')
+            print(f"\n📊 Final Results:")
+            print(f"  • Total posts analyzed: {agg_stats['total_posts']:,}")
+            print(f"  • Unique authors: {agg_stats['authors']['unique_authors']:,}")
+            print(f"  • Date range: {agg_stats['date_range']['days']} days")
+            print(f"  • Overall sentiment: ", end='')
             
             sentiment_ratio = agg_stats['sentiment_distribution'].get('sentiment_ratio', 0)
             if sentiment_ratio > 0.1:
-                click.echo("Positive 😊")
+                print("Positive 😊")
             elif sentiment_ratio < -0.1:
-                click.echo("Negative 😔")
+                print("Negative 😔")
             else:
-                click.echo("Neutral 😐")
+                print("Neutral 😐")
             
-            click.echo(f"\n📁 All results saved to: {writer.output_dir.absolute()}")
+            print(f"\n📁 All results saved to: {writer.output_dir.absolute()}")
             
             # Show file list
-            click.echo(f"\n📄 Generated files:")
+            print(f"\n📄 Generated files:")
             for file in exported_files:
-                click.echo(f"  • {file.name}")
+                print(f"  • {file.name}")
             
             # Open HTML report if generated
             if 'html' in format_list:
                 html_file = next((f for f in exported_files if f.suffix == '.html'), None)
                 if html_file:
-                    click.echo(f"\n🌐 View report: file://{html_file.absolute()}")
+                    print(f"\n🌐 View report: file://{html_file.absolute()}")
                     
                     if not os.getenv('PYTEST_CURRENT_TEST'):  # Don't prompt during tests
                         if click.confirm("\nOpen report in browser?"):
                             import webbrowser
                             webbrowser.open(f"file://{html_file.absolute()}")
             
-            click.echo("\n✨ Thank you for using MakeSenseOfIt!")
+            print("\n✨ Thank you for using MakeSenseOfIt!")
             
         else:
-            click.echo("\n⚠️  No posts collected. Check your queries and try again.")
+            print("\n⚠️  No posts collected. Check your queries and try again.")
             sys.exit(1)
         
         # Save final context
@@ -490,7 +490,7 @@ def main(queries, time, platforms, output, format, visualize, verbose, config, l
         
     except Exception as e:
         logger.error(f"Error during execution: {str(e)}")
-        click.echo(f"\n❌ Error: {str(e)}", err=True)
+        print(f"\n❌ Error: {str(e)}", err=True)
         if verbose:
             logger.exception("Full traceback:")
         sys.exit(1)
