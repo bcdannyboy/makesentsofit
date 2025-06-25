@@ -246,7 +246,10 @@ class TwitterScraper(BaseScraper):
     def _extract_urls(self, tweet: Any) -> List[str]:
         """Extract URLs from tweet."""
         if hasattr(tweet, 'outlinks') and tweet.outlinks:
-            return list(tweet.outlinks)
+            try:
+                return list(tweet.outlinks)
+            except TypeError:
+                return []
         
         # Fallback: extract from content
         content = getattr(tweet, 'rawContent', '') or ''
@@ -258,9 +261,12 @@ class TwitterScraper(BaseScraper):
         media_types = []
         
         if hasattr(tweet, 'media') and tweet.media:
-            for media_item in tweet.media:
-                if hasattr(media_item, 'type'):
-                    media_types.append(media_item.type)
+            try:
+                for media_item in tweet.media:
+                    if hasattr(media_item, 'type'):
+                        media_types.append(media_item.type)
+            except TypeError:
+                return media_types
         
         return media_types
     
