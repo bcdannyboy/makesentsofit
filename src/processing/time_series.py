@@ -2,6 +2,8 @@
 Time series analysis module.
 Analyzes temporal patterns and trends in sentiment data.
 """
+import os
+from concurrent.futures import ThreadPoolExecutor
 import pandas as pd
 import numpy as np
 from typing import List, Dict, Any, Optional, Tuple
@@ -24,7 +26,8 @@ class TimeSeriesAnalyzer:
     """
     
     def __init__(self, anomaly_threshold: float = 2.0,
-                 min_data_points: int = 3):
+                 min_data_points: int = 3,
+                 max_workers: Optional[int] = None):
         """
         Initialize time series analyzer.
         
@@ -34,6 +37,7 @@ class TimeSeriesAnalyzer:
         """
         self.anomaly_threshold = anomaly_threshold
         self.min_data_points = min_data_points
+        self.max_workers = max_workers or max(1, (os.cpu_count() or 1))
     
     def analyze(self, posts: List['Post']) -> Dict[str, Any]:
         """
@@ -85,27 +89,21 @@ class TimeSeriesAnalyzer:
         }
     
     def _create_time_series_df(self, posts: List['Post']) -> pd.DataFrame:
-        """Create DataFrame for time series analysis."""
-        data = []
-        
-        for post in posts:
+        """Create DataFrame for time series analysis using multithreading."""
+
+        def process(post: 'Post') -> Dict[str, Any]:
             sentiment_label = 'UNKNOWN'
             sentiment_score = 0.0
-            
+
             if hasattr(post, 'sentiment') and post.sentiment:
                 sentiment_label = post.sentiment.get('label', 'UNKNOWN')
                 sentiment_score = post.sentiment.get('score', 0.0)
-            
-            # Calculate sentiment numeric value
+
             sentiment_value = self._sentiment_to_numeric(sentiment_label)
-            
-            # Handle potential None engagement
-            if post.engagement is not None:
-                engagement_total = sum(post.engagement.values())
-            else:
-                engagement_total = 0
-            
-            data.append({
+
+            engagement_total = sum(post.engagement.values()) if post.engagement else 0
+
+            return {
                 'timestamp': post.timestamp,
                 'sentiment': sentiment_label,
                 'sentiment_score': sentiment_score,
@@ -113,9 +111,12 @@ class TimeSeriesAnalyzer:
                 'platform': post.platform,
                 'query': post.query,
                 'engagement': engagement_total,
-                'author': post.author
-            })
-        
+                'author': post.author,
+            }
+
+        with ThreadPoolExecutor(max_workers=self.max_workers) as executor:
+            data = list(executor.map(process, posts))
+
         df = pd.DataFrame(data)
         df['timestamp'] = pd.to_datetime(df['timestamp'])
         df.set_index('timestamp', inplace=True)

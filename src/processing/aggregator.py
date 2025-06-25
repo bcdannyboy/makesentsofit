@@ -2,6 +2,8 @@
 Data aggregation module.
 Generates comprehensive statistics from collected posts.
 """
+import os
+from concurrent.futures import ThreadPoolExecutor
 import pandas as pd
 import numpy as np
 from typing import List, Dict, Any, Optional
@@ -24,7 +26,8 @@ class DataAggregator:
     """
     
     def __init__(self, negative_threshold: float = 0.6,
-                 min_posts_for_analysis: int = 3):
+                 min_posts_for_analysis: int = 3,
+                 max_workers: Optional[int] = None):
         """
         Initialize aggregator.
         
@@ -34,6 +37,7 @@ class DataAggregator:
         """
         self.negative_threshold = negative_threshold
         self.min_posts_for_analysis = min_posts_for_analysis
+        self.max_workers = max_workers or max(1, (os.cpu_count() or 1))
     
     def aggregate(self, posts: List['Post']) -> Dict[str, Any]:
         """
@@ -99,32 +103,25 @@ class DataAggregator:
         }
     
     def _posts_to_dataframe(self, posts: List['Post']) -> pd.DataFrame:
-        """Convert posts to pandas DataFrame."""
-        data = []
-        
-        for post in posts:
-            # Extract sentiment info
+        """Convert posts to pandas DataFrame using multithreading."""
+
+        def process(post: 'Post') -> Dict[str, Any]:
             sentiment_label = 'UNKNOWN'
             sentiment_score = 0.0
             sentiment_method = 'unknown'
-            
+
             if hasattr(post, 'sentiment') and post.sentiment:
                 sentiment_label = post.sentiment.get('label', 'UNKNOWN')
                 sentiment_score = post.sentiment.get('score', 0.0)
                 sentiment_method = post.sentiment.get('method', 'unknown')
-            
-            # Calculate engagement score
-            if post.engagement is not None:
-                engagement_score = sum(post.engagement.values())
-            else:
-                engagement_score = 0
-            
-            # Extract metadata
+
+            engagement_score = sum(post.engagement.values()) if post.engagement else 0
+
             hashtag_count = len(post.metadata.get('hashtags', []))
             mention_count = len(post.metadata.get('mentions', []))
             has_media = bool(post.metadata.get('media_types', []))
-            
-            data.append({
+
+            return {
                 'id': post.id,
                 'platform': post.platform,
                 'author': post.author,
@@ -144,9 +141,12 @@ class DataAggregator:
                 'has_media': has_media,
                 'hour': post.timestamp.hour,
                 'day_of_week': post.timestamp.strftime('%A'),
-                'date': post.timestamp.date()
-            })
-        
+                'date': post.timestamp.date(),
+            }
+
+        with ThreadPoolExecutor(max_workers=self.max_workers) as executor:
+            data = list(executor.map(process, posts))
+
         return pd.DataFrame(data)
     
     def _calculate_date_range(self, df: pd.DataFrame) -> Dict[str, Any]:
