@@ -2,8 +2,8 @@
   "metadata": {
     "total_posts": 715,
     "unique_posts": 141,
-    "processing_time": 0.020604848861694336,
-    "timestamp": "2025-06-25T12:50:22.353274"
+    "processing_time": 0.0196530818939209,
+    "timestamp": "2025-06-25T12:55:33.299419"
   },
   "deduplication": {
     "total_posts": 715,
@@ -30,9 +30,9 @@
     "summary": {
       "total_posts": 141,
       "sentiment_distribution": {
-        "NEGATIVE": 53,
-        "POSITIVE": 51,
-        "NEUTRAL": 37
+        "NEUTRAL": 49,
+        "NEGATIVE": 47,
+        "POSITIVE": 45
       },
       "unique_authors": 5,
       "negative_users_count": 1,
@@ -40,13 +40,13 @@
     }
   },
   "time_series": {
-    "trend": "worsening",
-    "anomalies_count": 1,
+    "trend": "stable",
+    "anomalies_count": 0,
     "volatility": {
-      "overall": 0.8617740473070395,
+      "overall": 0.8105184901639628,
       "daily": NaN,
       "hourly": 0.0,
-      "coefficient_of_variation": 60.75507033514629
+      "coefficient_of_variation": 57.14155355655938
     }
   }
 }

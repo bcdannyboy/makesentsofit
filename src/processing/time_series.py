@@ -99,6 +99,12 @@ class TimeSeriesAnalyzer:
             # Calculate sentiment numeric value
             sentiment_value = self._sentiment_to_numeric(sentiment_label)
             
+            # Handle potential None engagement
+            if post.engagement is not None:
+                engagement_total = sum(post.engagement.values())
+            else:
+                engagement_total = 0
+            
             data.append({
                 'timestamp': post.timestamp,
                 'sentiment': sentiment_label,
@@ -106,7 +112,7 @@ class TimeSeriesAnalyzer:
                 'sentiment_value': sentiment_value,
                 'platform': post.platform,
                 'query': post.query,
-                'engagement': sum(post.engagement.values()),
+                'engagement': engagement_total,
                 'author': post.author
             })
         
