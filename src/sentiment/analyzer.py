@@ -2,6 +2,10 @@
 from __future__ import annotations
 
 import logging
+import os
+
+# Avoid importing TensorFlow in transformers which can crash on some platforms
+os.environ.setdefault("TRANSFORMERS_NO_TF_IMPORTS", "1")
 from typing import List, Dict
 
 from nltk.sentiment.vader import SentimentIntensityAnalyzer
@@ -48,6 +52,8 @@ class SentimentAnalyzer:
         self._transformer_init_attempted = True
         try:
             # Lazy import of transformers - only import when needed
+            # Avoid importing TensorFlow to prevent Metal backend issues on macOS
+            os.environ.setdefault("TRANSFORMERS_NO_TF_IMPORTS", "1")
             from transformers import pipeline as tf_pipeline
             
             device = 0 if torch and hasattr(torch, 'cuda') and torch.cuda.is_available() else -1

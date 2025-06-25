@@ -1,4 +1,5 @@
 """Helper for loading transformer sentiment models."""
+import os
 from transformers import pipeline
 import torch
 import logging
@@ -10,6 +11,7 @@ def load_model(model_name: str = "cardiffnlp/twitter-roberta-base-sentiment-late
     """Load a sentiment analysis pipeline."""
     try:
         device = 0 if torch.cuda.is_available() else -1
+        os.environ.setdefault("TRANSFORMERS_NO_TF_IMPORTS", "1")
         return pipeline(
             "sentiment-analysis",
             model=model_name,
