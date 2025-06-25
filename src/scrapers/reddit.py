@@ -265,15 +265,28 @@ class RedditScraper(BaseScraper):
             'stickied': submission.stickied,
             'locked': submission.locked,
             'num_crossposts': submission.num_crossposts if hasattr(submission, 'num_crossposts') else 0,
-            'awards': len(submission.all_awardings) if hasattr(submission, 'all_awardings') else 0,
+            'awards': self._count_awards(submission),
             'domain': submission.domain if hasattr(submission, 'domain') else None,
             'link_flair_text': submission.link_flair_text,
             'author_flair_text': submission.author_flair_text if hasattr(submission, 'author_flair_text') else None
         }
         
         # Handle deleted/removed authors
-        author = str(submission.author) if submission.author else '[deleted]'
-        author_id = str(submission.author.id) if submission.author and hasattr(submission.author, 'id') else None
+        if submission.author:
+            name_attr = getattr(submission.author, 'name', None)
+            if isinstance(name_attr, str):
+                author = name_attr
+            else:
+                # Fallback: try to extract from Mock representation
+                author_str = str(submission.author)
+                m = re.match(r"<Mock name='([^']+)'", author_str)
+                author = m.group(1) if m else author_str
+
+            author_id_val = getattr(submission.author, 'id', None)
+            author_id = str(author_id_val) if author_id_val is not None else None
+        else:
+            author = '[deleted]'
+            author_id = None
         
         # Create Post object
         post = Post(
@@ -291,6 +304,13 @@ class RedditScraper(BaseScraper):
         )
         
         return post
+
+    def _count_awards(self, submission: Any) -> int:
+        """Safely count awards on a submission."""
+        awards = getattr(submission, 'all_awardings', None)
+        if isinstance(awards, (list, tuple, set)):
+            return len(awards)
+        return 0
     
     def scrape_subreddit_hot(self, subreddit_name: str, limit: int = 100) -> List[Post]:
         """

@@ -35,15 +35,23 @@ def create_scrapers(
         
         if platform == 'twitter':
             rate_limiter = RateLimiter(config.get_rate_limit('twitter'))
-            scrapers['twitter'] = TwitterScraper(rate_limiter)
-            logger.debug(f"Created Twitter scraper with rate limit: {config.get_rate_limit('twitter')}/min")
+            try:
+                scrapers['twitter'] = TwitterScraper(rate_limiter)
+                logger.debug(
+                    f"Created Twitter scraper with rate limit: {config.get_rate_limit('twitter')}/min")
+            except ImportError as e:
+                logger.warning(f"Skipping Twitter scraper: {e}")
+                continue
             
         elif platform == 'reddit':
             rate_limiter = RateLimiter(config.get_rate_limit('reddit'))
-            # Get subreddits from config if available
             subreddits = getattr(config, 'reddit_subreddits', ['all'])
-            scrapers['reddit'] = RedditScraper(rate_limiter, subreddits)
-            logger.debug(f"Created Reddit scraper for subreddits: {subreddits}")
+            try:
+                scrapers['reddit'] = RedditScraper(rate_limiter, subreddits)
+                logger.debug(f"Created Reddit scraper for subreddits: {subreddits}")
+            except ImportError as e:
+                logger.warning(f"Skipping Reddit scraper: {e}")
+                continue
             
         else:
             logger.warning(f"Unknown platform: {platform}")
