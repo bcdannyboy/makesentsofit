@@ -224,6 +224,36 @@ def main(queries, time, platforms, output, format, visualize, verbose, config, l
             
             click.echo(f"\n✅ Phase 2 complete! Collected {len(all_posts)} posts.")
             click.echo("📝 Ready for Phase 3: Sentiment Analysis")
+
+            # Phase 3: Sentiment Analysis
+            from src.sentiment.analyzer import SentimentAnalyzer
+
+            click.echo("\n🧠 Starting Phase 3: Sentiment Analysis")
+            analyzer = SentimentAnalyzer(cfg.sentiment_model)
+            batch_size = cfg.batch_size
+
+            for i in range(0, len(all_posts), batch_size):
+                batch = all_posts[i:i + batch_size]
+                analyzer.analyze_posts(batch)
+                progress = min(i + batch_size, len(all_posts))
+                click.echo(f"  Processed {progress}/{len(all_posts)} posts...")
+
+            sentiment_counts = {'POSITIVE': 0, 'NEGATIVE': 0, 'NEUTRAL': 0}
+            for post in all_posts:
+                if hasattr(post, 'sentiment'):
+                    label = post.sentiment.get('label')
+                    if label in sentiment_counts:
+                        sentiment_counts[label] += 1
+
+            click.echo("✅ Sentiment analysis complete:")
+            click.echo(f"  😊 Positive: {sentiment_counts['POSITIVE']}")
+            click.echo(f"  😔 Negative: {sentiment_counts['NEGATIVE']}")
+            click.echo(f"  😐 Neutral: {sentiment_counts['NEUTRAL']}")
+
+            # Save sentiment results
+            sentiment_file = output_dir / f"{output}_sentiment.json"
+            posts_with_sentiment = [post.to_dict() | {'sentiment': post.sentiment} for post in all_posts]
+            save_json({'posts': posts_with_sentiment, 'summary': sentiment_counts}, sentiment_file)
         else:
             click.echo("\n⚠️  No posts collected. Check your queries and try again.")
             sys.exit(1)

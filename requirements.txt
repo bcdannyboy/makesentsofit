@@ -23,3 +23,8 @@ mypy==1.8.0
 
 # Documentation
 sphinx==7.2.6
+
+# Phase 3: Sentiment Analysis
+transformers==4.36.2
+nltk==3.8.1
+emoji==2.8.0
