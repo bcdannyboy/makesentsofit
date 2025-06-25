@@ -357,7 +357,65 @@ def main(queries, time, platforms, output, format, visualize, verbose, config, l
                 archive_path = writer.create_archive(exported_files, output)
                 if archive_path:
                     click.echo(f"  ✓ Created: {archive_path.name}")
-            
+
+            # Phase 6: Visualization
+            if visualize:
+                click.echo("\n📊 Generating visualizations...")
+                from src.visualization import (
+                    ChartGenerator,
+                    NetworkGraphGenerator,
+                    WordCloudGenerator,
+                    InteractiveChartGenerator,
+                )
+
+                charts = ChartGenerator()
+                network = NetworkGraphGenerator()
+                wordcloud = WordCloudGenerator()
+                interactive = InteractiveChartGenerator()
+
+                if export_context.get("time_series", {}).get("daily_sentiment"):
+                    charts.sentiment_timeline(
+                        export_context["time_series"]["daily_sentiment"],
+                        str(output_dir / f"{output}_timeline.png"),
+                    )
+                    click.echo("  ✓ Sentiment timeline")
+
+                dist_counts = export_context.get("statistics", {}).get("sentiment_distribution", {}).get("counts", {})
+                if dist_counts:
+                    charts.sentiment_distribution_pie(
+                        dist_counts,
+                        str(output_dir / f"{output}_sentiment_pie.png"),
+                    )
+                    click.echo("  ✓ Sentiment distribution")
+
+                network.create_user_network(
+                    export_context["posts"],
+                    str(output_dir / f"{output}_network.png"),
+                )
+                click.echo("  ✓ User network graph")
+
+                wordcloud.create_wordcloud(
+                    export_context["posts"],
+                    str(output_dir / f"{output}_wordcloud_all.png"),
+                )
+                wordcloud.create_wordcloud(
+                    export_context["posts"],
+                    str(output_dir / f"{output}_wordcloud_negative.png"),
+                    sentiment_filter="NEGATIVE",
+                )
+                click.echo("  ✓ Word clouds")
+
+                if export_context.get("time_series", {}).get("daily_sentiment"):
+                    interactive.create_interactive_timeline(
+                        export_context["time_series"]["daily_sentiment"],
+                        str(output_dir / f"{output}_interactive_timeline.html"),
+                    )
+                    interactive.create_3d_sentiment_scatter(
+                        export_context["posts"],
+                        str(output_dir / f"{output}_3d_scatter.html"),
+                    )
+                    click.echo("  ✓ Interactive visualizations")
+
             click.echo(f"\n✅ Phase 5 complete! Exported {len(exported_files)} files")
             click.echo(f"📁 Output directory: {writer.output_dir.absolute()}")
             
