@@ -21,7 +21,7 @@ class Deduplicator:
     3. Fuzzy matching for near-duplicates (optional)
     """
     
-    def __init__(self, similarity_threshold: float = 0.9,
+    def __init__(self, similarity_threshold: float = 0.95,
                  enable_fuzzy_matching: bool = False):
         """
         Initialize deduplicator.

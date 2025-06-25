@@ -73,6 +73,8 @@ class Post:
         Returns:
             Sum of all engagement metrics
         """
+        if self.engagement is None:
+            return 0
         return sum(self.engagement.values())
     
     def __str__(self) -> str:

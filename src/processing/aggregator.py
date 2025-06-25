@@ -114,7 +114,10 @@ class DataAggregator:
                 sentiment_method = post.sentiment.get('method', 'unknown')
             
             # Calculate engagement score
-            engagement_score = sum(post.engagement.values())
+            if post.engagement is not None:
+                engagement_score = sum(post.engagement.values())
+            else:
+                engagement_score = 0
             
             # Extract metadata
             hashtag_count = len(post.metadata.get('hashtags', []))
@@ -132,8 +135,8 @@ class DataAggregator:
                 'sentiment_score': sentiment_score,
                 'sentiment_method': sentiment_method,
                 'engagement_total': engagement_score,
-                'likes': post.engagement.get('likes', post.engagement.get('score', 0)),
-                'shares': post.engagement.get('retweets', post.engagement.get('num_comments', 0)),
+                'likes': post.engagement.get('likes', post.engagement.get('score', 0)) if post.engagement else 0,
+                'shares': post.engagement.get('retweets', post.engagement.get('num_comments', 0)) if post.engagement else 0,
                 'content_length': len(post.content),
                 'has_title': bool(post.title),
                 'hashtag_count': hashtag_count,
@@ -385,8 +388,24 @@ class DataAggregator:
     
     def _identify_viral_posts(self, df: pd.DataFrame, posts: List['Post']) -> List[Dict[str, Any]]:
         """Identify viral or highly engaging posts."""
-        # Calculate viral threshold (mean + 2 std)
-        viral_threshold = df['engagement_total'].mean() + (2 * df['engagement_total'].std())
+        if len(df) == 0:
+            return []
+            
+        # Use percentile-based approach for better outlier detection
+        # Viral threshold is either 95th percentile or mean + 2*std, whichever is lower
+        percentile_95 = df['engagement_total'].quantile(0.95)
+        mean_plus_2std = df['engagement_total'].mean() + (2 * df['engagement_total'].std())
+        
+        # For small datasets, use a more lenient approach
+        if len(df) < 10:
+            # Use 90th percentile for small datasets
+            viral_threshold = df['engagement_total'].quantile(0.90)
+        else:
+            viral_threshold = min(percentile_95, mean_plus_2std)
+        
+        # Ensure threshold is at least 2x the median to avoid false positives
+        median_engagement = df['engagement_total'].median()
+        viral_threshold = max(viral_threshold, median_engagement * 2)
         
         # Find viral posts
         viral_df = df[df['engagement_total'] >= viral_threshold].copy()
