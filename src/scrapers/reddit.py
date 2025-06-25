@@ -296,7 +296,7 @@ class RedditScraper(BaseScraper):
             'author_flair_text': submission.author_flair_text if hasattr(submission, 'author_flair_text') else None
         }
         
-        # Handle deleted/removed authors
+        # Handle deleted/removed authors without triggering additional API calls
         if submission.author:
             name_attr = getattr(submission.author, 'name', None)
             if isinstance(name_attr, str):
@@ -307,7 +307,9 @@ class RedditScraper(BaseScraper):
                 m = re.match(r"<Mock name='([^']+)'", author_str)
                 author = m.group(1) if m else author_str
 
-            author_id_val = getattr(submission.author, 'id', None)
+            # Use author_fullname from submission data if available. Accessing
+            # submission.author.id would trigger an extra request for each post
+            author_id_val = getattr(submission, 'author_fullname', None)
             author_id = str(author_id_val) if author_id_val is not None else None
         else:
             author = '[deleted]'
