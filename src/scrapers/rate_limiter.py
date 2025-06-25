@@ -5,7 +5,7 @@ Uses token bucket algorithm to ensure we don't exceed rate limits.
 import time
 import logging
 from collections import deque
-from threading import Lock
+from threading import RLock
 from typing import Optional
 
 logger = logging.getLogger(__name__)
@@ -34,8 +34,8 @@ class RateLimiter:
         # Use deque to store timestamps of recent calls
         self.call_times = deque(maxlen=self.burst_size)
         
-        # Thread safety
-        self.lock = Lock()
+        # Thread safety - using reentrant lock to allow nested acquisition
+        self.lock = RLock()
         
         # Statistics
         self.total_calls = 0
