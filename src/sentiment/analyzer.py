@@ -4,13 +4,16 @@ from __future__ import annotations
 import logging
 from typing import List, Dict
 
-from transformers import pipeline
 from nltk.sentiment.vader import SentimentIntensityAnalyzer
 import nltk
 try:
     import torch
 except Exception:  # pragma: no cover - optional dependency
     torch = None
+
+# Don't import transformers at module level - will be imported lazily when needed
+pipeline = None
+transformers_available = None
 
 from .preprocessor import TextPreprocessor
 
@@ -23,22 +26,10 @@ class SentimentAnalyzer:
         self.model_name = model_name
         self.preprocessor = TextPreprocessor()
 
-        # Try to initialize transformer model
-        try:
-            device = 0 if torch and hasattr(torch, 'cuda') and torch.cuda.is_available() else -1
-            self.transformer = pipeline(
-                "sentiment-analysis",
-                model=model_name,
-                device=device,
-                truncation=True,
-                max_length=512,
-            )
-            self.transformer_available = True
-            logger.info("Loaded transformer model: %s", model_name)
-        except Exception as exc:  # pragma: no cover - depends on environment
-            logger.warning("Could not load transformer model: %s", exc)
-            self.transformer_available = False
-            self.transformer = None
+        # Don't initialize transformer at creation time - wait until needed
+        self.transformer_available = None  # Unknown until we try
+        self.transformer = None
+        self._transformer_init_attempted = False
 
         # Ensure VADER resources
         try:
@@ -49,9 +40,38 @@ class SentimentAnalyzer:
         self.vader = SentimentIntensityAnalyzer()
         self.cache: Dict[str, Dict] = {}
 
+    def _try_init_transformer(self):
+        """Lazy initialization of transformer model."""
+        if self._transformer_init_attempted:
+            return
+        
+        self._transformer_init_attempted = True
+        try:
+            # Lazy import of transformers - only import when needed
+            from transformers import pipeline as tf_pipeline
+            
+            device = 0 if torch and hasattr(torch, 'cuda') and torch.cuda.is_available() else -1
+            self.transformer = tf_pipeline(
+                "sentiment-analysis",
+                model=self.model_name,
+                device=device,
+                truncation=True,
+                max_length=512,
+            )
+            self.transformer_available = True
+            logger.info("Loaded transformer model: %s", self.model_name)
+        except Exception as exc:  # pragma: no cover - depends on environment
+            logger.warning("Could not load transformer model: %s", exc)
+            self.transformer_available = False
+            self.transformer = None
+
     def analyze_batch(self, texts: List[str]) -> List[Dict]:
         """Analyze a batch of texts."""
         processed = [self.preprocessor.clean(t) for t in texts]
+
+        # Try to initialize transformer on first use
+        if self.transformer_available is None:
+            self._try_init_transformer()
 
         if self.transformer_available:
             try:
