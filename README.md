@@ -43,6 +43,12 @@ You can still pass flags to override configuration values:
 python3 makesentsofit.py --queries "test" --time 7 --visualize
 ```
 
+When visualization is enabled the tool now offers an **interactive Streamlit dashboard** that launches at the end of the run. The dashboard loads the generated analysis JSON and lets you explore the user–subreddit–topic network with modern filters and Plotly visuals.
+
+```bash
+python3 makesentsofit.py --queries "climate" --time 30 --visualize
+```
+
 The results are written to the directory specified by `output_directory` in the
 configuration.
 

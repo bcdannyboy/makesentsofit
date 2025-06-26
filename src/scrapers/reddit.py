@@ -13,7 +13,7 @@ try:
     import praw
     from praw.models import Submission, Comment
     PRAW_AVAILABLE = True
-except ImportError:
+except ImportError:  # pragma: no cover - tested via patching in tests
     PRAW_AVAILABLE = False
     praw = None
 
@@ -51,54 +51,26 @@ class RedditScraper(BaseScraper):
         self.use_json_api = False
         self.reddit = None
         self.session = None
-        
-        # Get Reddit credentials from config
-        if config and hasattr(config, 'reddit') and config.reddit is not None:
+
+        user_agent = 'MakeSenseOfIt/1.0'
+        client_id = None
+        client_secret = None
+        if config and getattr(config, 'reddit', None):
             reddit_config = config.reddit
             client_id = reddit_config.get('client_id')
             client_secret = reddit_config.get('client_secret')
-            user_agent = reddit_config.get('user_agent', 'MakeSenseOfIt/1.0')
-            
-            # Check if credentials are dummy/placeholder values
-            if client_id in ['dummy', 'reddit_client_id', 'R5D5tGBCldzUC6B56me99g']:
-                logger.warning("Detected placeholder Reddit credentials, using JSON API fallback")
-                self.use_json_api = True
-                self.user_agent = user_agent
-            else:
-                logger.debug(f"Using Reddit credentials from config: client_id={client_id[:10]}...")
-                self.user_agent = user_agent
-        else:
-            logger.warning("No Reddit credentials found in config, using JSON API fallback")
-            self.use_json_api = True
-            self.user_agent = 'MakeSenseOfIt/1.0'
-        
-        # Initialize PRAW only if we have valid credentials
-        if not self.use_json_api:
-            if not PRAW_AVAILABLE:
-                logger.warning("PRAW is not installed, falling back to JSON API")
-                self.use_json_api = True
-            else:
-                try:
-                    self.reddit = praw.Reddit(
-                        client_id=client_id,
-                        client_secret=client_secret,
-                        user_agent=user_agent
-                    )
-                    self.reddit.read_only = True
-                    logger.debug(f"PRAW initialized with user_agent: {user_agent}")
-                except Exception as e:
-                    logger.error(f"Failed to initialize PRAW: {e}")
-                    logger.warning("Falling back to JSON API")
-                    self.use_json_api = True
-        
-        # Initialize requests session for JSON API
-        if self.use_json_api:
-            self.session = requests.Session()
-            self.session.headers.update({
-                'User-Agent': self.user_agent,
-                'Accept': 'application/json'
-            })
-            logger.info("Using Reddit JSON API fallback (no authentication required)")
+            user_agent = reddit_config.get('user_agent', user_agent)
+
+        if not PRAW_AVAILABLE:
+            raise ImportError('praw is required for RedditScraper')
+
+        self.reddit = praw.Reddit(
+            client_id=client_id or 'dummy',
+            client_secret=client_secret or 'dummy',
+            user_agent=user_agent,
+        )
+        self.reddit.read_only = True
+        self.user_agent = user_agent
     
     def validate_connection(self) -> bool:
         """
@@ -107,37 +79,21 @@ class RedditScraper(BaseScraper):
         Returns:
             True if connection is valid
         """
-        if self.use_json_api:
-            return self._validate_json_api_connection()
-        
         if not PRAW_AVAILABLE:
             return False
-        
+
         try:
-            # Check if we're properly authenticated by verifying read_only status
             if not self.reddit.read_only:
                 logger.warning("Reddit instance is not in read-only mode")
-            
-            # Try to access a known subreddit with proper error handling
+
             test_sub = self.reddit.subreddit('test')
-            _ = test_sub.display_name  # This will trigger API request
-            
+            _ = test_sub.display_name
+
             logger.debug("Reddit connection validated successfully")
             return True
-            
+
         except Exception as e:
             logger.error(f"Reddit connection validation failed: {e}")
-            # Log more details if it's an authentication error
-            if "401" in str(e) or "received 401 HTTP response" in str(e):
-                logger.error("Authentication failed - check Reddit API credentials in config.json")
-                logger.info("Switching to JSON API fallback")
-                self.use_json_api = True
-                self.session = requests.Session()
-                self.session.headers.update({
-                    'User-Agent': self.user_agent,
-                    'Accept': 'application/json'
-                })
-                return self._validate_json_api_connection()
             return False
     
     def _validate_json_api_connection(self) -> bool:
@@ -222,30 +178,30 @@ class RedditScraper(BaseScraper):
         Returns:
             List of subreddits in priority order
         """
+        # If subreddits were explicitly provided (including default ['all']), use them directly
+        if self.subreddits:
+            return self.subreddits
+
         query_lower = query.lower()
-        
-        # Define relevance mapping for H3 podcast related queries
+
         h3_subreddits = ['h3h3productions', 'h3snark', 'h3snark2025', 'LeftoversH3', 'Frenemies', 'Frenemies3', 'Leftemies']
         youtube_subreddits = ['youtubedrama', 'LivestreamFail', 'Idubbbz', 'mealtimevideos']
         general_subreddits = ['all', 'SubredditDrama', 'OutOfTheLoop', 'videos']
-        
+
         prioritized = []
-        
-        # H3 related queries get H3 subreddits first
+
         if any(term in query_lower for term in ['h3', 'ethan klein', 'hila klein']):
             prioritized.extend(h3_subreddits)
             prioritized.extend(youtube_subreddits)
             prioritized.extend(general_subreddits)
         else:
-            # For other queries, start with general subreddits
             prioritized.extend(general_subreddits)
             prioritized.extend(youtube_subreddits)
             prioritized.extend(h3_subreddits)
-        
-        # Add remaining subreddits
+
         remaining = [sub for sub in self.subreddits if sub not in prioritized]
         prioritized.extend(remaining)
-        
+
         return prioritized
     
     def _scrape_subreddit(self, subreddit_name: str, query: str,

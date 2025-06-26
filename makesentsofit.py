@@ -338,11 +338,14 @@ def main(queries, time, platforms, output, format, visualize, verbose, config, l
             
             # Export based on requested formats
             exported_files = []
+            analysis_json_path = None
+            user_network_json_path = None
             
             if 'json' in format_list:
                 print("\n📄 Exporting JSON...")
                 json_data = formatter.format_for_json(export_context)
                 filepath = writer.write_json(json_data, output)
+                analysis_json_path = filepath
                 exported_files.append(filepath)
                 print(f"  ✓ Created: {filepath.name}")
             
@@ -423,6 +426,7 @@ def main(queries, time, platforms, output, format, visualize, verbose, config, l
                     json_path = writer.write_json(
                         json_data, f"{output}_user_network"
                     )
+                    user_network_json_path = json_path
                     exported_files.append(json_path)
                     user_network.create_plotly_network_viz(
                         export_context["posts"],
@@ -511,6 +515,10 @@ def main(queries, time, platforms, output, format, visualize, verbose, config, l
                     if click.confirm(f"\nOpen {file_type} in browser?"):
                         import webbrowser
                         webbrowser.open(f"file://{target_file.absolute()}")
+
+                    if analysis_json_path and click.confirm("Launch interactive dashboard?"):
+                        from src.dashboard import launch_dashboard
+                        launch_dashboard(analysis_json_path, user_network_json_path)
             
             print("\n✨ Thank you for using MakeSenseOfIt!")
             
