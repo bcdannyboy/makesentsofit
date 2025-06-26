@@ -1,5 +1,5 @@
 {
-  "queries": ["h3", "H3", "h3h3", "H3H3", "ethan klein", "Ethan Klein", "hila klein", "Hila Klein"],
+  "queries": ["H3", "h3h3", "H3H3", "ethan klein", "Ethan Klein", "hila klein", "Hila Klein"],
   "output_formats": ["json"],
   "output_prefix": "analysis",
   "visualize": true,
@@ -49,6 +49,11 @@
     "Idubbbz",
     "mealtimevideos",
     "braveryjerk",
-    "Hasan_Piker"
+    "Hasan_Piker",
+    "Frenemies",
+    "Frenemies3",
+    "Leftemies",
+    "popculturechat",
+    "VaushV"
   ]
 }

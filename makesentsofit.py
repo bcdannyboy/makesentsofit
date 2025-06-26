@@ -247,7 +247,7 @@ def main(queries, time, platforms, output, format, visualize, verbose, config, l
             print("\n🧠 Starting Phase 3: Sentiment Analysis")
             print("="*50)
             
-            analyzer = SentimentAnalyzer(cfg.sentiment_model)
+            analyzer = SentimentAnalyzer(cfg.sentiment_model, cfg.openai_api_key)
             batch_size = cfg.batch_size
 
             print(f"Analyzing sentiment for {len(all_posts)} posts...")

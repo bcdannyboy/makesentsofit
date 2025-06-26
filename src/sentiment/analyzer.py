@@ -28,9 +28,11 @@ FORCE_VADER_ONLY = _is_apple_silicon()
 from nltk.sentiment.vader import SentimentIntensityAnalyzer
 import nltk
 try:
-    import openai  # type: ignore
+    from openai import OpenAI  # type: ignore
+    openai_available = True
 except Exception:  # pragma: no cover - optional dependency
-    openai = None
+    OpenAI = None
+    openai_available = False
 try:
     import torch
 except Exception:  # pragma: no cover - optional dependency
@@ -53,13 +55,15 @@ class SentimentAnalyzer:
         self.preprocessor = TextPreprocessor()
 
         self.openai_api_key = openai_api_key or os.getenv("OPENAI_API_KEY")
-        self.use_openai = bool(self.openai_api_key and openai)
-        if self.use_openai and openai is not None:
-            openai.api_key = self.openai_api_key
+        self.use_openai = bool(self.openai_api_key and openai_available)
+        if self.use_openai and openai_available:
+            self.openai_client = OpenAI(api_key=self.openai_api_key)
             logger.info("OpenAI API key provided - using ChatGPT for sentiment analysis")
-        elif self.use_openai and openai is None:
+        elif self.use_openai and not openai_available:
             logger.warning("openai package not installed, disabling OpenAI sentiment analysis")
             self.use_openai = False
+        else:
+            self.openai_client = None
 
         # Don't initialize transformer at creation time - wait until needed
         self.transformer_available = None  # Unknown until we try
@@ -122,17 +126,28 @@ class SentimentAnalyzer:
 
         if self.use_openai:
             results = []
+            i = 0
             for raw, cleaned in zip(texts, processed):
                 try:
-                    resp = openai.ChatCompletion.create(
+                    resp = self.openai_client.chat.completions.create(
                         model="gpt-4o",
                         messages=[
-                            {"role": "system", "content": "Classify the sentiment of the following text as POSITIVE, NEGATIVE, or NEUTRAL."},
+                            {"role": "system", "content": "Classify the sentiment of the following text as POSITIVE, NEGATIVE, NEUTRAL."},
                             {"role": "user", "content": cleaned},
                         ],
                         max_tokens=1,
                     )
-                    label = resp.choices[0].message["content"].strip().upper()
+                    
+                    label = resp.choices[0].message.content.strip().upper()
+                    
+                    # Map abbreviated ChatGPT labels to full labels expected by the codebase
+                    label_mapping = {
+                        "POS": "POSITIVE",
+                        "NEG": "NEGATIVE",
+                        "NE": "NEUTRAL"
+                    }
+                    label = label_mapping.get(label, label)  # Use mapping if available, otherwise keep original
+
                     results.append({
                         "label": label,
                         "score": 1.0,
@@ -142,6 +157,7 @@ class SentimentAnalyzer:
                 except Exception as exc:  # pragma: no cover - network issues
                     logger.error("OpenAI sentiment failed: %s", exc)
                     results.append(self._analyze_with_vader(raw))
+                i = i + 1
             return results
 
         # Try to initialize transformer on first use
