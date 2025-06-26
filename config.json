@@ -1,5 +1,5 @@
 {
-  "queries": ["H3", "h3h3", "H3H3", "ethan klein", "Ethan Klein", "hila klein", "Hila Klein"],
+  "queries": ["h3", "H3", "h3h3", "H3H3", "ethan klein", "Ethan Klein", "hila klein", "Hila Klein"],
   "output_formats": ["json"],
   "output_prefix": "analysis",
   "visualize": true,
@@ -7,7 +7,7 @@
   "default_time_window": 365,
   "rate_limits": {
     "twitter": 50,
-    "reddit": 60
+    "reddit": 30
   },
   "reddit": {
     "client_id": "R5D5tGBCldzUC6B56me99g",

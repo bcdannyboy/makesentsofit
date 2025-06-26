@@ -137,10 +137,11 @@ class BaseScraper(ABC):
         """
         pass
     
-    def scrape_multiple(self, queries: List[str], start_date: datetime, 
+    def scrape_multiple(self, queries: List[str], start_date: datetime,
                        end_date: datetime) -> List[Post]:
         """
         Scrape multiple queries and combine results.
+        Uses sequential processing to avoid overwhelming rate limits.
         
         Args:
             queries: List of search queries
@@ -151,31 +152,54 @@ class BaseScraper(ABC):
             Combined list of posts from all queries
         """
         all_posts = []
+        
+        # Deduplicate and normalize queries
+        normalized_queries = self._deduplicate_queries(queries)
+        self.logger.info(f"Normalized {len(queries)} queries to {len(normalized_queries)} unique queries")
 
-        def run_task(args):
-            i, query = args
-            self.logger.info(f"Scraping query {i}/{len(queries)}: '{query}'")
-
+        # Process queries sequentially to avoid rate limit issues
+        for i, query in enumerate(normalized_queries, 1):
+            self.logger.info(f"Scraping query {i}/{len(normalized_queries)}: '{query}'")
+            
             try:
                 posts = self.scrape(query, start_date, end_date)
-                self.logger.info(f"Collected {len(posts)} posts for '{query}'")
-                return posts
+                all_posts.extend(posts)
+                self.logger.info(f"Collected {len(posts)} posts for '{query}' (total: {len(all_posts)})")
+                
             except Exception as e:
                 with self._lock:
                     self.errors_count += 1
                     self.last_error = str(e)
                 self.logger.error(f"Error scraping '{query}': {e}")
-                return []
-
-        with ThreadPoolExecutor(max_workers=self.max_workers) as executor:
-            results = executor.map(run_task, enumerate(queries, 1))
-            for posts in results:
-                all_posts.extend(posts)
+                continue
 
         self.logger.info(
-            f"Total posts collected: {len(all_posts)} from {len(queries)} queries")
+            f"Total posts collected: {len(all_posts)} from {len(normalized_queries)} queries")
 
         return all_posts
+    
+    def _deduplicate_queries(self, queries: List[str]) -> List[str]:
+        """
+        Remove duplicate queries (case-insensitive) and normalize.
+        
+        Args:
+            queries: List of raw queries
+            
+        Returns:
+            List of unique, normalized queries
+        """
+        seen = set()
+        unique_queries = []
+        
+        for query in queries:
+            # Normalize query: lowercase, strip whitespace
+            normalized = query.lower().strip()
+            
+            if normalized not in seen and normalized:
+                seen.add(normalized)
+                unique_queries.append(query.strip())  # Keep original case for display
+        
+        return unique_queries
     
     def reset_stats(self):
         """Reset collection statistics."""

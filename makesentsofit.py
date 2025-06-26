@@ -489,16 +489,28 @@ def main(queries, time, platforms, output, format, visualize, verbose, config, l
             for file in exported_files:
                 print(f"  • {file.name}")
             
-            # Open HTML report if generated
-            if 'html' in format_list:
-                html_file = next((f for f in exported_files if f.suffix == '.html'), None)
-                if html_file:
-                    print(f"\n🌐 View report: file://{html_file.absolute()}")
-                    
-                    if not os.getenv('PYTEST_CURRENT_TEST'):  # Don't prompt during tests
-                        if click.confirm("\nOpen report in browser?"):
-                            import webbrowser
-                            webbrowser.open(f"file://{html_file.absolute()}")
+            # Open dashboard or HTML report if generated
+            dashboard_file = None
+            html_report_file = None
+            
+            # Look for dashboard first
+            for file in exported_files:
+                if file.name.endswith('_dashboard.html'):
+                    dashboard_file = file
+                elif file.suffix == '.html' and 'dashboard' not in file.name:
+                    html_report_file = file
+            
+            # Priority: Dashboard > HTML Report
+            target_file = dashboard_file or html_report_file
+            
+            if target_file:
+                file_type = "dashboard" if dashboard_file else "report"
+                print(f"\n🌐 View {file_type}: file://{target_file.absolute()}")
+                
+                if not os.getenv('PYTEST_CURRENT_TEST'):  # Don't prompt during tests
+                    if click.confirm(f"\nOpen {file_type} in browser?"):
+                        import webbrowser
+                        webbrowser.open(f"file://{target_file.absolute()}")
             
             print("\n✨ Thank you for using MakeSenseOfIt!")
             

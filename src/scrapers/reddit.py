@@ -1,10 +1,13 @@
 """
-Reddit scraper implementation using PRAW.
+Reddit scraper implementation using PRAW and fallback JSON API.
 """
 import logging
 from datetime import datetime
 from typing import List, Optional, Dict, Any
 import re
+import requests
+import json
+import time
 
 try:
     import praw
@@ -45,10 +48,9 @@ class RedditScraper(BaseScraper):
         self.subreddits = subreddits or ['all']
         self.max_posts_per_query = max_posts_per_query
         self.config = config
-        
-        if not PRAW_AVAILABLE:
-            logger.error("PRAW is not installed. Install with: pip install praw")
-            raise ImportError("PRAW is required for Reddit scraping")
+        self.use_json_api = False
+        self.reddit = None
+        self.session = None
         
         # Get Reddit credentials from config
         if config and hasattr(config, 'reddit') and config.reddit is not None:
@@ -56,25 +58,47 @@ class RedditScraper(BaseScraper):
             client_id = reddit_config.get('client_id')
             client_secret = reddit_config.get('client_secret')
             user_agent = reddit_config.get('user_agent', 'MakeSenseOfIt/1.0')
-            logger.debug(f"Using Reddit credentials from config: client_id={client_id[:10]}...")
+            
+            # Check if credentials are dummy/placeholder values
+            if client_id in ['dummy', 'reddit_client_id', 'R5D5tGBCldzUC6B56me99g']:
+                logger.warning("Detected placeholder Reddit credentials, using JSON API fallback")
+                self.use_json_api = True
+                self.user_agent = user_agent
+            else:
+                logger.debug(f"Using Reddit credentials from config: client_id={client_id[:10]}...")
+                self.user_agent = user_agent
         else:
-            logger.warning("No Reddit credentials found in config, using fallback values")
-            client_id = 'dummy'
-            client_secret = 'dummy'
-            user_agent = 'MakeSenseOfIt/1.0'
+            logger.warning("No Reddit credentials found in config, using JSON API fallback")
+            self.use_json_api = True
+            self.user_agent = 'MakeSenseOfIt/1.0'
         
-        # Initialize PRAW in read-only mode
-        try:
-            self.reddit = praw.Reddit(
-                client_id=client_id,
-                client_secret=client_secret,
-                user_agent=user_agent
-            )
-            self.reddit.read_only = True
-            logger.debug(f"PRAW initialized with user_agent: {user_agent}")
-        except Exception as e:
-            logger.error(f"Failed to initialize PRAW: {e}")
-            raise
+        # Initialize PRAW only if we have valid credentials
+        if not self.use_json_api:
+            if not PRAW_AVAILABLE:
+                logger.warning("PRAW is not installed, falling back to JSON API")
+                self.use_json_api = True
+            else:
+                try:
+                    self.reddit = praw.Reddit(
+                        client_id=client_id,
+                        client_secret=client_secret,
+                        user_agent=user_agent
+                    )
+                    self.reddit.read_only = True
+                    logger.debug(f"PRAW initialized with user_agent: {user_agent}")
+                except Exception as e:
+                    logger.error(f"Failed to initialize PRAW: {e}")
+                    logger.warning("Falling back to JSON API")
+                    self.use_json_api = True
+        
+        # Initialize requests session for JSON API
+        if self.use_json_api:
+            self.session = requests.Session()
+            self.session.headers.update({
+                'User-Agent': self.user_agent,
+                'Accept': 'application/json'
+            })
+            logger.info("Using Reddit JSON API fallback (no authentication required)")
     
     def validate_connection(self) -> bool:
         """
@@ -83,6 +107,9 @@ class RedditScraper(BaseScraper):
         Returns:
             True if connection is valid
         """
+        if self.use_json_api:
+            return self._validate_json_api_connection()
+        
         if not PRAW_AVAILABLE:
             return False
         
@@ -103,9 +130,36 @@ class RedditScraper(BaseScraper):
             # Log more details if it's an authentication error
             if "401" in str(e) or "received 401 HTTP response" in str(e):
                 logger.error("Authentication failed - check Reddit API credentials in config.json")
+                logger.info("Switching to JSON API fallback")
+                self.use_json_api = True
+                self.session = requests.Session()
+                self.session.headers.update({
+                    'User-Agent': self.user_agent,
+                    'Accept': 'application/json'
+                })
+                return self._validate_json_api_connection()
             return False
     
-    def scrape(self, query: str, start_date: datetime, 
+    def _validate_json_api_connection(self) -> bool:
+        """Test connection using Reddit JSON API."""
+        try:
+            url = "https://www.reddit.com/r/test.json?limit=1"
+            response = self.session.get(url, timeout=10)
+            
+            if response.status_code == 200:
+                data = response.json()
+                if 'data' in data and 'children' in data['data']:
+                    logger.debug("Reddit JSON API connection validated successfully")
+                    return True
+            
+            logger.error(f"JSON API validation failed: {response.status_code}")
+            return False
+            
+        except Exception as e:
+            logger.error(f"JSON API connection validation failed: {e}")
+            return False
+    
+    def scrape(self, query: str, start_date: datetime,
                end_date: datetime) -> List[Post]:
         """
         Scrape Reddit for posts matching query.
@@ -128,11 +182,24 @@ class RedditScraper(BaseScraper):
         
         all_posts = []
         
-        # Search each subreddit
-        for subreddit_name in self.subreddits:
+        # Prioritize subreddits based on query relevance
+        prioritized_subreddits = self._prioritize_subreddits(query)
+        logger.debug(f"Prioritized subreddits for '{query}': {prioritized_subreddits[:5]}...")
+        
+        # Search each subreddit in priority order
+        for subreddit_name in prioritized_subreddits:
             try:
-                posts = self._scrape_subreddit(subreddit_name, query, start_date, end_date)
+                if self.use_json_api:
+                    posts = self._scrape_subreddit_json(subreddit_name, query, start_date, end_date)
+                else:
+                    posts = self._scrape_subreddit(subreddit_name, query, start_date, end_date)
+                
                 all_posts.extend(posts)
+                
+                # Early termination if we have enough posts
+                if self.max_posts_per_query and len(all_posts) >= self.max_posts_per_query:
+                    logger.debug(f"Reached max posts limit ({self.max_posts_per_query}), stopping search")
+                    break
                 
             except Exception as e:
                 logger.error(f"Error scraping r/{subreddit_name}: {e}")
@@ -144,6 +211,42 @@ class RedditScraper(BaseScraper):
         logger.info(f"Completed Reddit scrape: {len(all_posts)} posts for '{query}'")
         
         return all_posts
+    
+    def _prioritize_subreddits(self, query: str) -> List[str]:
+        """
+        Prioritize subreddits based on query relevance.
+        
+        Args:
+            query: Search query
+            
+        Returns:
+            List of subreddits in priority order
+        """
+        query_lower = query.lower()
+        
+        # Define relevance mapping for H3 podcast related queries
+        h3_subreddits = ['h3h3productions', 'h3snark', 'h3snark2025', 'LeftoversH3', 'Frenemies', 'Frenemies3', 'Leftemies']
+        youtube_subreddits = ['youtubedrama', 'LivestreamFail', 'Idubbbz', 'mealtimevideos']
+        general_subreddits = ['all', 'SubredditDrama', 'OutOfTheLoop', 'videos']
+        
+        prioritized = []
+        
+        # H3 related queries get H3 subreddits first
+        if any(term in query_lower for term in ['h3', 'ethan klein', 'hila klein']):
+            prioritized.extend(h3_subreddits)
+            prioritized.extend(youtube_subreddits)
+            prioritized.extend(general_subreddits)
+        else:
+            # For other queries, start with general subreddits
+            prioritized.extend(general_subreddits)
+            prioritized.extend(youtube_subreddits)
+            prioritized.extend(h3_subreddits)
+        
+        # Add remaining subreddits
+        remaining = [sub for sub in self.subreddits if sub not in prioritized]
+        prioritized.extend(remaining)
+        
+        return prioritized
     
     def _scrape_subreddit(self, subreddit_name: str, query: str,
                          start_date: datetime, end_date: datetime) -> List[Post]:
@@ -210,6 +313,157 @@ class RedditScraper(BaseScraper):
             raise
         
         return posts
+    
+    def _scrape_subreddit_json(self, subreddit_name: str, query: str,
+                              start_date: datetime, end_date: datetime) -> List[Post]:
+        """
+        Scrape a specific subreddit using Reddit JSON API.
+        Optimized for rate limiting and efficiency.
+        
+        Args:
+            subreddit_name: Name of subreddit
+            query: Search query
+            start_date: Start date
+            end_date: End date
+            
+        Returns:
+            List of posts from subreddit
+        """
+        logger.debug(f"Searching r/{subreddit_name} for '{query}' using JSON API")
+        
+        posts = []
+        
+        # Limit posts per subreddit to manage rate limits better
+        max_posts_per_subreddit = min(50, (self.max_posts_per_query or 100) // max(1, len(self.subreddits)))
+        
+        try:
+            # For 'all', we'll search r/popular instead as it's more accessible
+            search_subreddit = 'popular' if subreddit_name == 'all' else subreddit_name
+            
+            # Rate limiting per API request
+            self.rate_limiter.wait_if_needed()
+            
+            # Build search URL - get more posts in single request
+            params = {
+                'q': query,
+                'restrict_sr': 'on' if subreddit_name != 'all' else 'off',
+                'sort': 'relevance',
+                'limit': max_posts_per_subreddit,
+                'raw_json': 1,
+                't': 'year'  # Limit to past year for better performance
+            }
+            
+            if subreddit_name == 'all':
+                url = f"https://www.reddit.com/search.json"
+            else:
+                url = f"https://www.reddit.com/r/{search_subreddit}/search.json"
+            
+            response = self.session.get(url, params=params, timeout=30)
+            
+            if response.status_code == 429:
+                logger.warning(f"Rate limited for r/{subreddit_name}, skipping")
+                return []
+            elif response.status_code != 200:
+                logger.warning(f"HTTP {response.status_code} for r/{subreddit_name}, skipping")
+                return []
+            
+            data = response.json()
+            
+            if 'data' not in data or 'children' not in data['data']:
+                logger.debug(f"No data found for r/{subreddit_name}")
+                return []
+            
+            children = data['data']['children']
+            if not children:
+                logger.debug(f"No posts found for r/{subreddit_name}")
+                return []
+            
+            # Process all posts from the single request
+            for child in children:
+                try:
+                    post_data = child['data']
+                    
+                    # Check date bounds
+                    post_time = datetime.fromtimestamp(post_data.get('created_utc', 0))
+                    if not self._is_within_date_range(post_time, start_date, end_date):
+                        continue
+                    
+                    # Convert to Post object
+                    post = self._json_to_post(post_data, query)
+                    posts.append(post)
+                    self.posts_collected += 1
+                    
+                except Exception as e:
+                    logger.debug(f"Error processing post from r/{subreddit_name}: {e}")
+                    continue
+            
+            logger.debug(f"Collected {len(posts)} posts from r/{subreddit_name}")
+            
+        except Exception as e:
+            logger.warning(f"Error searching r/{subreddit_name} with JSON API: {e}")
+            # Don't raise - just return empty list and continue with other subreddits
+            return []
+        
+        return posts
+    
+    def _json_to_post(self, post_data: Dict[str, Any], query: str) -> Post:
+        """
+        Convert Reddit JSON API response to Post object.
+        
+        Args:
+            post_data: JSON post data from Reddit API
+            query: Search query that found this post
+            
+        Returns:
+            Post object
+        """
+        # Extract engagement metrics
+        engagement = {
+            'score': post_data.get('score', 0),
+            'upvotes': int(post_data.get('ups', 0)),
+            'downvotes': int(post_data.get('downs', 0)),
+            'num_comments': post_data.get('num_comments', 0),
+            'upvote_ratio': post_data.get('upvote_ratio', 0.5)
+        }
+        
+        # Extract metadata
+        metadata = {
+            'subreddit': post_data.get('subreddit', ''),
+            'subreddit_id': post_data.get('subreddit_id', ''),
+            'is_self': post_data.get('is_self', False),
+            'is_video': post_data.get('is_video', False),
+            'is_original_content': post_data.get('is_original_content', False),
+            'over_18': post_data.get('over_18', False),
+            'spoiler': post_data.get('spoiler', False),
+            'stickied': post_data.get('stickied', False),
+            'locked': post_data.get('locked', False),
+            'num_crossposts': post_data.get('num_crossposts', 0),
+            'awards': len(post_data.get('all_awardings', [])),
+            'domain': post_data.get('domain', ''),
+            'link_flair_text': post_data.get('link_flair_text', ''),
+            'author_flair_text': post_data.get('author_flair_text', '')
+        }
+        
+        # Handle author
+        author = post_data.get('author', '[deleted]')
+        author_id = post_data.get('author_fullname', None)
+        
+        # Create Post object
+        post = Post(
+            id=post_data.get('id', ''),
+            platform='reddit',
+            author=author,
+            author_id=author_id,
+            content=post_data.get('selftext', ''),
+            title=post_data.get('title', ''),
+            timestamp=datetime.fromtimestamp(post_data.get('created_utc', 0)),
+            engagement=engagement,
+            url=f"https://reddit.com{post_data.get('permalink', '')}",
+            query=query,
+            metadata=metadata
+        )
+        
+        return post
     
     def _get_time_filter(self, start_date: datetime, end_date: datetime) -> str:
         """
