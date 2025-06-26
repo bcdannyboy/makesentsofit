@@ -5,6 +5,7 @@ from .network import NetworkGraphGenerator
 from .wordcloud import WordCloudGenerator
 from .interactive import InteractiveChartGenerator
 from .user_network import UserSentimentNetworkAnalyzer
+from .dashboard import DashboardGenerator
 
 __all__ = [
     "ChartGenerator",
@@ -12,4 +13,5 @@ __all__ = [
     "WordCloudGenerator",
     "InteractiveChartGenerator",
     "UserSentimentNetworkAnalyzer",
+    "DashboardGenerator",
 ]

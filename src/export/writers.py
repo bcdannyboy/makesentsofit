@@ -166,6 +166,22 @@ class ExportWriter:
         except Exception as e:
             logger.error(f"Failed to write HTML report: {e}")
             raise
+
+    def write_dashboard(self, html_content: str, filename_prefix: str) -> Path:
+        """Write already-rendered dashboard HTML to file."""
+        filepath = self.output_dir / f"{filename_prefix}_dashboard.html"
+        try:
+            logger.info(f"Writing dashboard to: {filepath}")
+            with open(filepath, "w", encoding="utf-8") as f:
+                f.write(html_content)
+            file_size = filepath.stat().st_size
+            logger.info(
+                f"Wrote dashboard file: {filepath.name} ({self._format_file_size(file_size)})"
+            )
+            return filepath
+        except Exception as e:
+            logger.error(f"Failed to write dashboard: {e}")
+            raise
     
     def write_summary(self, context: Dict[str, Any], filename_prefix: str) -> Path:
         """
