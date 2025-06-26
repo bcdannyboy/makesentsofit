@@ -32,12 +32,11 @@ def test_sentiment_analyzer_creation():
         assert analyzer is not None
         assert hasattr(analyzer, 'preprocessor')
         assert hasattr(analyzer, 'vader')
-        assert hasattr(analyzer, 'model_name')
         
         # Test VADER functionality directly (without triggering transformers)
-        result = analyzer._analyze_with_vader("This is fantastic!")
+        result = analyzer._analyze_with_combined("This is fantastic!")
         
-        assert result["method"] == "vader"
+        assert result["method"] == "vader_textblob"
         assert result["label"] == "POSITIVE"
         assert "compound" in result
         assert "score" in result
@@ -49,12 +48,12 @@ def test_sentiment_analyzer_creation():
 
 
 def test_vader_fallback():
-    """Test VADER functionality directly."""
+    """Test combined VADER/TextBlob analysis."""
     try:
         analyzer = SentimentAnalyzer()
-        result = analyzer._analyze_with_vader("This is fantastic!")
+        result = analyzer._analyze_with_combined("This is fantastic!")
 
-        assert result["method"] == "vader"
+        assert result["method"] == "vader_textblob"
         assert result["label"] == "POSITIVE"
         assert "compound" in result
         

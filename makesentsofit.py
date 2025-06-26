@@ -133,7 +133,6 @@ def main(queries, time, platforms, output, format, visualize, verbose, config, l
             print(f"  • Config file: {config or 'Using defaults'}")
             print(f"  • Output directory: {output_dir}")
             print(f"  • Cache directory: {cfg.cache_directory}")
-            print(f"  • Sentiment model: {cfg.sentiment_model}")
             
             print(f"\n⚡ Rate Limits:")
             for platform in platform_list:
@@ -247,7 +246,7 @@ def main(queries, time, platforms, output, format, visualize, verbose, config, l
             print("\n🧠 Starting Phase 3: Sentiment Analysis")
             print("="*50)
             
-            analyzer = SentimentAnalyzer(cfg.sentiment_model, cfg.openai_api_key)
+            analyzer = SentimentAnalyzer(cfg.openai_api_key)
             batch_size = cfg.batch_size
 
             print(f"Analyzing sentiment for {len(all_posts)} posts...")

@@ -18,7 +18,6 @@ class TestConfig:
         assert config.default_time_window == 30
         assert 'twitter' in config.default_platforms
         assert 'reddit' in config.default_platforms
-        assert config.sentiment_model == 'cardiffnlp/twitter-roberta-base-sentiment-latest'
         assert config.output_directory == './output'
         assert config.cache_directory == './cache'
         assert config.batch_size == 100
@@ -89,7 +88,6 @@ class TestConfig:
         assert 'default_platforms' in config_dict
         assert 'rate_limits' in config_dict
         assert config_dict['default_time_window'] == 30
-        assert config_dict['sentiment_model'] == config.sentiment_model
     
     def test_config_save(self, temp_dir):
         """Test saving configuration."""

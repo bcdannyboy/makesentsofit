@@ -267,7 +267,7 @@ class TestDataAggregator:
         """Test temporal pattern analysis."""
         # Create posts at different times
         posts = []
-        base_time = datetime.now()
+        base_time = datetime.now().replace(hour=12, minute=0, second=0, microsecond=0)
         
         # Morning posts
         for i in range(3):
@@ -409,7 +409,7 @@ class TestTimeSeriesAnalyzer:
     def test_daily_sentiment_aggregation(self):
         """Test daily sentiment aggregation."""
         posts = []
-        base_time = datetime.now()
+        base_time = datetime.now().replace(hour=12, minute=0, second=0, microsecond=0)
         
         # Day 1: 2 positive, 1 negative
         for i in range(2):
