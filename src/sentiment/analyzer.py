@@ -16,7 +16,9 @@ from typing import List, Dict, Optional
 
 from nltk.sentiment.vader import SentimentIntensityAnalyzer
 import nltk
+from nltk.corpus import opinion_lexicon
 from textblob import TextBlob
+import emoji
 try:
     from openai import OpenAI  # type: ignore
     openai_available = True
@@ -57,6 +59,23 @@ class SentimentAnalyzer:
             nltk.download("vader_lexicon", quiet=True)
 
         self.vader = SentimentIntensityAnalyzer()
+        try:
+            nltk.data.find("opinion_lexicon")
+        except LookupError:  # pragma: no cover - first run
+            nltk.download("opinion_lexicon", quiet=True)
+
+        self.pos_words = set(opinion_lexicon.positive())
+        self.neg_words = set(opinion_lexicon.negative())
+
+        self.positive_emoji = {
+            ":smile:", ":grinning_face_with_big_eyes:", ":heart_eyes:",
+            ":thumbs_up:", ":grinning:", ":blush:", ":red_heart:"
+        }
+        self.negative_emoji = {
+            ":frowning_face:", ":angry_face:", ":thumbs_down:",
+            ":crying_face:", ":pensive_face:"
+        }
+
         self.cache: Dict[str, Dict] = {}
 
 
@@ -122,25 +141,50 @@ class SentimentAnalyzer:
         }
 
     def _analyze_with_combined(self, text: str) -> Dict:
-        """Analyze text using both VADER and TextBlob and combine results."""
-        vader = self.vader.polarity_scores(text)["compound"]
-        blob = TextBlob(text).sentiment.polarity
-        combined = (vader + blob) / 2
+        """Analyze text using multiple classical NLP techniques."""
+        cleaned = self.preprocessor.clean(text)
+        vader = self.vader.polarity_scores(cleaned)["compound"]
+        blob = TextBlob(cleaned).sentiment.polarity
+
+        tokens = cleaned.lower().split()
+        pos_count = sum(t in self.pos_words for t in tokens)
+        neg_count = sum(t in self.neg_words for t in tokens)
+        lex_score = 0.0
+        if tokens:
+            lex_score = (pos_count - neg_count) / len(tokens)
+
+        emoji_text = emoji.demojize(text)
+        pos_emoji = sum(e in emoji_text for e in self.positive_emoji)
+        neg_emoji = sum(e in emoji_text for e in self.negative_emoji)
+        emoji_score = 0.0
+        if pos_emoji or neg_emoji:
+            emoji_score = (pos_emoji - neg_emoji) / (pos_emoji + neg_emoji)
+
+        features = self.preprocessor.extract_features(text)
+        emphasis = features["exclamation_marks"] - features["question_marks"]
+
+        combined = (vader + blob + lex_score) / 3
+        combined += 0.1 * emoji_score + 0.02 * emphasis
+
         if combined >= 0.05:
             label = "POSITIVE"
         elif combined <= -0.05:
             label = "NEGATIVE"
         else:
             label = "NEUTRAL"
+
         return {
             "label": label,
             "score": abs(combined),
-            "method": "vader_textblob",
+            "method": "comprehensive",
             "compound": combined,
             "original_text": text[:200],
             "details": {
                 "vader": vader,
                 "textblob": blob,
+                "lexicon": lex_score,
+                "emoji": emoji_score,
+                "emphasis": emphasis,
             },
         }
 

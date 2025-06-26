@@ -2,13 +2,21 @@ from wordcloud import WordCloud
 import matplotlib.pyplot as plt
 from typing import List
 import re
+import nltk
+from nltk.corpus import stopwords
 
 
 class WordCloudGenerator:
     """Generate word clouds from posts."""
 
     def __init__(self) -> None:
-        self.stopwords = {
+        """Initialize word cloud generator with extensive stopwords."""
+        try:
+            nltk.data.find("corpora/stopwords")
+        except LookupError:  # pragma: no cover - download once
+            nltk.download("stopwords", quiet=True)
+
+        self.stopwords = set(stopwords.words("english")) | {
             "the",
             "a",
             "an",
@@ -64,6 +72,8 @@ class WordCloudGenerator:
             "my",
             "your",
             "their",
+            "just",
+            "if",
         }
 
     def create_wordcloud(self, posts: List["Post"], output_path: str, sentiment_filter: str | None = None) -> None:

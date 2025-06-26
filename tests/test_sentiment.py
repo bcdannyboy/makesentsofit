@@ -36,7 +36,7 @@ def test_sentiment_analyzer_creation():
         # Test VADER functionality directly (without triggering transformers)
         result = analyzer._analyze_with_combined("This is fantastic!")
         
-        assert result["method"] == "vader_textblob"
+        assert result["method"] == "comprehensive"
         assert result["label"] == "POSITIVE"
         assert "compound" in result
         assert "score" in result
@@ -53,7 +53,7 @@ def test_vader_fallback():
         analyzer = SentimentAnalyzer()
         result = analyzer._analyze_with_combined("This is fantastic!")
 
-        assert result["method"] == "vader_textblob"
+        assert result["method"] == "comprehensive"
         assert result["label"] == "POSITIVE"
         assert "compound" in result
         
