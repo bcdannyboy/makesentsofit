@@ -28,6 +28,7 @@ sphinx==7.2.6
 transformers==4.36.2
 nltk==3.8.1
 emoji==2.8.0
+textblob==0.17.1
 
 # Phase 6: Visualization
 matplotlib==3.8.2

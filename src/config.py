@@ -23,7 +23,6 @@ class Config:
         'twitter': 50,
         'reddit': 60
     })
-    sentiment_model: str = 'cardiffnlp/twitter-roberta-base-sentiment-latest'
     output_directory: str = './output'
     cache_directory: str = './cache'
     visualization_style: str = 'dark'
@@ -78,7 +77,6 @@ class Config:
         self.default_platforms = ['twitter', 'reddit']
         self.default_time_window = 30
         self.rate_limits = {'twitter': 50, 'reddit': 60}
-        self.sentiment_model = 'cardiffnlp/twitter-roberta-base-sentiment-latest'
         self.output_directory = './output'
         self.cache_directory = './cache'
         self.visualization_style = 'dark'

@@ -156,7 +156,6 @@ Create a `config.json` file for default settings:
     "twitter": 50,
     "reddit": 60
   },
-  "sentiment_model": "cardiffnlp/twitter-roberta-base-sentiment-latest",
   "visualization_style": "dark",
   "output_directory": "./output",
   "cache_directory": "./cache"
@@ -299,7 +298,6 @@ class Config:
         'twitter': 50,
         'reddit': 60
     })
-    sentiment_model: str = 'cardiffnlp/twitter-roberta-base-sentiment-latest'
     output_directory: str = './output'
     cache_directory: str = './cache'
     
@@ -824,7 +822,7 @@ def test_twitter_scraper():
 
 ### Objectives
 - Integrate transformer models
-- Implement VADER fallback
+ - Implement VADER/TextBlob fallback
 - Batch processing for efficiency
 - Confidence scoring
 
@@ -1030,7 +1028,7 @@ from src.sentiment.analyzer import SentimentAnalyzer
 
 # Analyze sentiment
 click.echo("🧠 Analyzing sentiment...")
-analyzer = SentimentAnalyzer(cfg.sentiment_model)
+analyzer = SentimentAnalyzer()
 
 # Process in batches for efficiency
 batch_size = 100
@@ -1102,20 +1100,20 @@ def test_sentiment_analyzer():
     assert results[2]['label'] in ['NEUTRAL', 'NEGATIVE', 'POSITIVE']  # Model dependent
     
 def test_vader_fallback():
-    """Test VADER fallback."""
+    """Test VADER/TextBlob fallback."""
     analyzer = SentimentAnalyzer()
     
     # Force VADER
-    result = analyzer._analyze_with_vader("This is fantastic!")
-    
-    assert result['method'] == 'vader'
+    result = analyzer._analyze_with_combined("This is fantastic!")
+
+    assert result['method'] == 'vader_textblob'
     assert result['label'] == 'POSITIVE'
     assert 'compound' in result
 ```
 
 ### Exit Criteria for Phase 3
 - [ ] Transformer model loads and works
-- [ ] VADER fallback functions correctly
+- [ ] VADER/TextBlob fallback functions correctly
 - [ ] Batch processing improves performance
 - [ ] Sentiment attached to all posts
 - [ ] All Phase 3 tests pass
@@ -3062,7 +3060,7 @@ def main(queries, time, platforms, output, format, visualize, verbose, config, l
     # Phase 3: Sentiment Analysis  
     with memory_tracker("Sentiment Analysis"):
         click.echo(f"\n🧠 Analyzing sentiment for {len(all_posts)} posts...")
-        analyzer = SentimentAnalyzer(cfg.sentiment_model)
+        analyzer = SentimentAnalyzer()
         
         # Process in batches with progress tracking
         batch_size = 100
