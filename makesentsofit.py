@@ -383,6 +383,7 @@ def main(queries, time, platforms, output, format, visualize, verbose, config, l
                     WordCloudGenerator,
                     InteractiveChartGenerator,
                     UserSentimentNetworkAnalyzer,
+                    DashboardGenerator,
                 )
 
                 charts = ChartGenerator()
@@ -390,6 +391,7 @@ def main(queries, time, platforms, output, format, visualize, verbose, config, l
                 wordcloud = WordCloudGenerator()
                 interactive = InteractiveChartGenerator()
                 user_network = UserSentimentNetworkAnalyzer()
+                dashboard = DashboardGenerator()
 
                 if export_context.get("time_series", {}).get("daily_sentiment"):
                     charts.sentiment_timeline(
@@ -450,6 +452,13 @@ def main(queries, time, platforms, output, format, visualize, verbose, config, l
                         str(output_dir / f"{output}_3d_scatter.html"),
                     )
                     print("  ✓ Interactive visualizations")
+
+                dashboard.generate_dashboard(
+                    export_context["posts"],
+                    str(output_dir / f"{output}_dashboard.html"),
+                )
+                exported_files.append(Path(output_dir / f"{output}_dashboard.html"))
+                print("  ✓ Dashboard")
 
             print(f"\n✅ Phase 5 complete! Exported {len(exported_files)} files")
             print(f"📁 Output directory: {writer.output_dir.absolute()}")
